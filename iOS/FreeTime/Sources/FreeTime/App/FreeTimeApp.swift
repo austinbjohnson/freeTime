@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct TagScannerApp: App {
+struct FreeTimeApp: App {
     @StateObject private var authService = AuthService()
     @StateObject private var convexService = ConvexService()
     
