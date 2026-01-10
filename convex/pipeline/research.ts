@@ -441,6 +441,37 @@ async function searchEbaySold(query: string): Promise<Listing[]> {
   }
 }
 
+// Search eBay with multiple query strategies (specific → broad)
+async function searchEbaySoldWithFallback(
+  queries: string[],
+  extractedData: ExtractedData,
+  productCategory: string | null
+): Promise<Listing[]> {
+  const allListings: Listing[] = [];
+  
+  for (const query of queries) {
+    console.log(`[Research] Trying eBay query: ${query}`);
+    const results = await searchEbaySold(query);
+    console.log(`[Research] Found ${results.length} results`);
+    
+    if (results.length > 0) {
+      // Filter by relevance
+      const { relevant, filtered } = filterByRelevance(results, extractedData, productCategory, 0.3);
+      console.log(`[Research] After relevance filter: ${relevant.length} kept, ${filtered} removed`);
+      
+      if (relevant.length >= 5) {
+        // Got enough relevant results, use these
+        return relevant;
+      }
+      
+      // Add what we have and try next query
+      allListings.push(...relevant);
+    }
+  }
+  
+  return allListings;
+}
+
 // Parse listings from search results with improved price extraction
 function parseListingsFromResults(
   results: Awaited<ReturnType<typeof searchWithSerpAPI>>,
@@ -552,16 +583,38 @@ export const researchItem = action({
       const soldListings: Listing[] = [];
       const sources: string[] = [];
 
-      // STEP 1: Direct eBay sold listings search with SPECIFIC query
+      // STEP 1: Direct eBay sold listings search with FALLBACK strategy
+      // Try specific queries first, then broaden if needed
+      const ebayQueries: string[] = [];
+      
+      // Most specific: Brand + Style Number
+      if (extractedData.brand && extractedData.styleNumber) {
+        ebayQueries.push(`${extractedData.brand} ${extractedData.styleNumber}`);
+      }
+      
+      // Medium specific: Brand + Category + Exclusions
       if (ebayQuery) {
-        console.log(`[Research] Searching eBay sold listings for: ${ebayQuery}`);
-        const ebaySold = await searchEbaySold(ebayQuery);
-        console.log(`[Research] Found ${ebaySold.length} eBay sold listings (before filtering)`);
-        
-        // Filter by relevance
-        const { relevant, filtered } = filterByRelevance(ebaySold, extractedData, productCategory, 0.35);
-        soldListings.push(...relevant);
-        console.log(`[Research] After relevance filter: ${relevant.length} kept, ${filtered} removed`);
+        ebayQueries.push(ebayQuery);
+      }
+      
+      // Broader: Brand + Category (no exclusions)
+      if (extractedData.brand && productCategory) {
+        ebayQueries.push(`${extractedData.brand} ${productCategory}`);
+      }
+      
+      // Broadest: Just brand (rely on relevance filtering)
+      if (extractedData.brand) {
+        ebayQueries.push(extractedData.brand);
+      }
+      
+      // Remove duplicates
+      const uniqueEbayQueries = [...new Set(ebayQueries)];
+      
+      if (uniqueEbayQueries.length > 0) {
+        console.log(`[Research] eBay query strategy: ${uniqueEbayQueries.length} queries (specific → broad)`);
+        const ebaySold = await searchEbaySoldWithFallback(uniqueEbayQueries, extractedData, productCategory);
+        soldListings.push(...ebaySold);
+        console.log(`[Research] Final eBay results: ${ebaySold.length} relevant sold listings`);
       }
 
       // STEP 2: Platform-specific searches
