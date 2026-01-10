@@ -14,6 +14,7 @@ import type * as pipeline_orchestrator from "../pipeline/orchestrator.js";
 import type * as pipeline_refinement from "../pipeline/refinement.js";
 import type * as pipeline_research from "../pipeline/research.js";
 import type * as pipeline_types from "../pipeline/types.js";
+import type * as pipeline_utils from "../pipeline/utils.js";
 import type * as scans from "../scans.js";
 import type * as users from "../users.js";
 
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   "pipeline/refinement": typeof pipeline_refinement;
   "pipeline/research": typeof pipeline_research;
   "pipeline/types": typeof pipeline_types;
+  "pipeline/utils": typeof pipeline_utils;
   scans: typeof scans;
   users: typeof users;
 }>;

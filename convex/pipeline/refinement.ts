@@ -9,15 +9,19 @@ import type {
   RefinedFindings,
   ComparableListing,
 } from "./types";
+import { withRetry, formatUserError } from "./utils";
 
 /**
  * Stage 3: AI Refinement
  * Synthesizes research results into actionable pricing insights
  * 
- * Uses AI to:
- * - Analyze comparable listings
- * - Calculate suggested price ranges
- * - Generate market insights
+ * Features:
+ * - Multiple AI providers (OpenAI, Anthropic)
+ * - Retry logic with exponential backoff
+ * - Provider fallback on failure
+ * - Analyzes comparable listings
+ * - Calculates suggested price ranges
+ * - Generates market insights
  */
 
 const REFINEMENT_PROMPT = `You are a clothing resale pricing expert. Analyze the following data about a clothing item and provide pricing recommendations.
@@ -66,7 +70,7 @@ Return ONLY valid JSON in this exact format:
   "confidence": 0.7
 }`;
 
-// Refine using OpenAI
+// Refine using OpenAI (with retry)
 async function refineWithOpenAI(
   extractedData: ExtractedData,
   researchResults: ResearchResults
@@ -92,36 +96,38 @@ async function refineWithOpenAI(
       )
     );
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 1500,
-    }),
-  });
+  return withRetry(async () => {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 1500,
+      }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${error}`);
-  }
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error (${response.status}): ${error}`);
+    }
 
-  const data = await response.json();
-  const content = data.choices[0]?.message?.content;
+    const data = await response.json();
+    const content = data.choices[0]?.message?.content;
 
-  if (!content) throw new Error("No response from OpenAI");
+    if (!content) throw new Error("No response from OpenAI");
 
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Could not parse JSON from response");
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Could not parse JSON from response");
 
-  return JSON.parse(jsonMatch[0]) as RefinedFindings;
+    return JSON.parse(jsonMatch[0]) as RefinedFindings;
+  }, { maxRetries: 2 });
 }
 
-// Refine using Anthropic
+// Refine using Anthropic (with retry)
 async function refineWithAnthropic(
   extractedData: ExtractedData,
   researchResults: ResearchResults
@@ -147,34 +153,36 @@ async function refineWithAnthropic(
       )
     );
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "Content-Type": "application/json",
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1500,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
+  return withRetry(async () => {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Anthropic API error: ${error}`);
-  }
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Anthropic API error (${response.status}): ${error}`);
+    }
 
-  const data = await response.json();
-  const content = data.content[0]?.text;
+    const data = await response.json();
+    const content = data.content[0]?.text;
 
-  if (!content) throw new Error("No response from Anthropic");
+    if (!content) throw new Error("No response from Anthropic");
 
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Could not parse JSON from response");
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("Could not parse JSON from response");
 
-  return JSON.parse(jsonMatch[0]) as RefinedFindings;
+    return JSON.parse(jsonMatch[0]) as RefinedFindings;
+  }, { maxRetries: 2 });
 }
 
 // Fallback: simple statistical refinement (no AI)
@@ -252,7 +260,7 @@ function refineWithStatistics(
   };
 }
 
-// Main refinement action
+// Main refinement action with provider fallback
 export const refineFindings = action({
   args: {
     scanId: v.id("scans"),
@@ -264,22 +272,57 @@ export const refineFindings = action({
   },
   handler: async (ctx, args): Promise<RefinedFindings> => {
     const startTime = Date.now();
-    const selectedProvider = args.provider || "anthropic";
+    const primaryProvider = args.provider || "anthropic";
+    const fallbackProvider = primaryProvider === "anthropic" ? "openai" : "anthropic";
     const extractedData = args.extractedData as ExtractedData;
     const researchResults = args.researchResults as ResearchResults;
+    
+    let usedProvider = primaryProvider;
+    let refinedFindings: RefinedFindings | null = null;
+    let primaryError: Error | null = null;
+
+    // If stats requested, just do stats
+    if (primaryProvider === "stats") {
+      refinedFindings = refineWithStatistics(extractedData, researchResults);
+      
+      await ctx.runMutation(internal.scans.updateRefinedFindingsInternal, {
+        scanId: args.scanId,
+        refinedFindings,
+      });
+
+      await ctx.runMutation(internal.pipeline.logging.logPipelineRun, {
+        scanId: args.scanId,
+        stage: "refinement",
+        provider: "stats",
+        durationMs: Date.now() - startTime,
+        success: true,
+      });
+
+      return refinedFindings;
+    }
 
     try {
-      let refinedFindings: RefinedFindings;
-
-      if (selectedProvider === "openai") {
-        refinedFindings = await refineWithOpenAI(extractedData, researchResults);
-      } else if (selectedProvider === "anthropic") {
-        refinedFindings = await refineWithAnthropic(
-          extractedData,
-          researchResults
-        );
-      } else {
-        refinedFindings = refineWithStatistics(extractedData, researchResults);
+      // Try primary AI provider
+      try {
+        console.log(`[Refinement] Trying ${primaryProvider}...`);
+        if (primaryProvider === "openai") {
+          refinedFindings = await refineWithOpenAI(extractedData, researchResults);
+        } else {
+          refinedFindings = await refineWithAnthropic(extractedData, researchResults);
+        }
+      } catch (error) {
+        primaryError = error instanceof Error ? error : new Error(String(error));
+        console.log(`[Refinement] ${primaryProvider} failed: ${primaryError.message}`);
+        
+        // Try fallback AI provider
+        console.log(`[Refinement] Trying fallback ${fallbackProvider}...`);
+        usedProvider = fallbackProvider;
+        
+        if (fallbackProvider === "openai") {
+          refinedFindings = await refineWithOpenAI(extractedData, researchResults);
+        } else {
+          refinedFindings = await refineWithAnthropic(extractedData, researchResults);
+        }
       }
 
       // Update scan with refined findings
@@ -292,9 +335,10 @@ export const refineFindings = action({
       await ctx.runMutation(internal.pipeline.logging.logPipelineRun, {
         scanId: args.scanId,
         stage: "refinement",
-        provider: selectedProvider,
+        provider: usedProvider,
         durationMs: Date.now() - startTime,
         success: true,
+        details: primaryError ? { fallbackUsed: true, primaryError: primaryError.message } : undefined,
       });
 
       return refinedFindings;
@@ -302,24 +346,26 @@ export const refineFindings = action({
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      // Log failed run
+      // Log failed AI run
       await ctx.runMutation(internal.pipeline.logging.logPipelineRun, {
         scanId: args.scanId,
         stage: "refinement",
-        provider: selectedProvider,
+        provider: usedProvider,
         durationMs: Date.now() - startTime,
         success: false,
         errorMessage,
+        details: { primaryProvider, fallbackProvider, primaryError: primaryError?.message },
       });
 
-      // Try fallback to statistics
+      // Final fallback to statistics
       try {
+        console.log("[Refinement] Both AI providers failed, using statistics...");
         const fallbackFindings = refineWithStatistics(
           extractedData,
           researchResults
         );
         fallbackFindings.insights.unshift(
-          "AI refinement failed, using statistical analysis"
+          "AI analysis unavailable, using statistical analysis"
         );
 
         await ctx.runMutation(internal.scans.updateRefinedFindingsInternal, {
@@ -327,13 +373,25 @@ export const refineFindings = action({
           refinedFindings: fallbackFindings,
         });
 
+        // Log stats fallback success
+        await ctx.runMutation(internal.pipeline.logging.logPipelineRun, {
+          scanId: args.scanId,
+          stage: "refinement",
+          provider: "stats",
+          durationMs: Date.now() - startTime,
+          success: true,
+          details: { statsFallback: true, originalError: errorMessage },
+        });
+
         return fallbackFindings;
       } catch {
+        const userFriendlyError = formatUserError(error instanceof Error ? error : new Error(errorMessage));
+        
         // Update scan status to failed
         await ctx.runMutation(internal.scans.updateStatusInternal, {
           scanId: args.scanId,
           status: "failed",
-          errorMessage: `Refinement failed: ${errorMessage}`,
+          errorMessage: userFriendlyError,
         });
 
         throw error;

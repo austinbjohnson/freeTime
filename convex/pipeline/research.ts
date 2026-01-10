@@ -4,12 +4,16 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { ExtractedData, ResearchResults, Listing } from "./types";
+import { withRetry, formatUserError } from "./utils";
 
 /**
  * Stage 2: Web Research
  * Searches the web for information about the clothing item
  * 
- * Uses SerpAPI for web search, targets resale platforms
+ * Features:
+ * - SerpAPI for web search
+ * - Targets resale platforms (eBay, Poshmark, Mercari, etc.)
+ * - Retry logic with exponential backoff
  */
 
 // Build search queries from extracted data
@@ -46,7 +50,7 @@ function buildSearchQueries(data: ExtractedData): string[] {
   return queries.slice(0, 5); // Limit to 5 queries
 }
 
-// Search using SerpAPI
+// Search using SerpAPI with retry
 async function searchWithSerpAPI(query: string): Promise<{
   organic: Array<{
     title: string;
@@ -63,21 +67,23 @@ async function searchWithSerpAPI(query: string): Promise<{
   const apiKey = process.env.SERPAPI_API_KEY;
   if (!apiKey) throw new Error("SERPAPI_API_KEY not configured");
 
-  const params = new URLSearchParams({
-    q: query,
-    api_key: apiKey,
-    engine: "google",
-    num: "10",
-  });
+  return withRetry(async () => {
+    const params = new URLSearchParams({
+      q: query,
+      api_key: apiKey,
+      engine: "google",
+      num: "10",
+    });
 
-  const response = await fetch(`https://serpapi.com/search?${params}`);
+    const response = await fetch(`https://serpapi.com/search?${params}`);
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`SerpAPI error: ${error}`);
-  }
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`SerpAPI error (${response.status}): ${error}`);
+    }
 
-  return await response.json();
+    return await response.json();
+  }, { maxRetries: 2, baseDelayMs: 2000 }); // Longer delay for rate limits
 }
 
 // Parse listings from search results
@@ -221,6 +227,7 @@ export const researchItem = action({
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
+      const userFriendlyError = formatUserError(error instanceof Error ? error : new Error(errorMessage));
 
       // Log failed run
       await ctx.runMutation(internal.pipeline.logging.logPipelineRun, {
@@ -232,11 +239,11 @@ export const researchItem = action({
         errorMessage,
       });
 
-      // Update scan status to failed
+      // Update scan status to failed with user-friendly message
       await ctx.runMutation(internal.scans.updateStatusInternal, {
         scanId: args.scanId,
         status: "failed",
-        errorMessage: `Research failed: ${errorMessage}`,
+        errorMessage: userFriendlyError,
       });
 
       throw error;
