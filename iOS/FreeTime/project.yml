@@ -29,7 +29,7 @@ targets:
           - "**/.DS_Store"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.freetime.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.ajohnson.freetime
         INFOPLIST_FILE: Sources/FreeTime/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
