@@ -95,6 +95,13 @@ export default defineSchema({
     success: v.boolean(),
     errorMessage: v.optional(v.string()),
     details: v.optional(v.any()),
+    // Token usage metrics (for AI stages)
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+    totalTokens: v.optional(v.number()),
+    estimatedCostUsd: v.optional(v.number()),
   })
-    .index("by_scan", ["scanId"]),
+    .index("by_scan", ["scanId"])
+    .index("by_stage", ["stage"])
+    .index("by_provider", ["provider"]),
 });

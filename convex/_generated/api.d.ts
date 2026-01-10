@@ -13,6 +13,7 @@ import type * as brandSeeder from "../brandSeeder.js";
 import type * as brands from "../brands.js";
 import type * as images from "../images.js";
 import type * as imagesMutations from "../imagesMutations.js";
+import type * as metrics from "../metrics.js";
 import type * as pipeline_extraction from "../pipeline/extraction.js";
 import type * as pipeline_logging from "../pipeline/logging.js";
 import type * as pipeline_orchestrator from "../pipeline/orchestrator.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   brands: typeof brands;
   images: typeof images;
   imagesMutations: typeof imagesMutations;
+  metrics: typeof metrics;
   "pipeline/extraction": typeof pipeline_extraction;
   "pipeline/logging": typeof pipeline_logging;
   "pipeline/orchestrator": typeof pipeline_orchestrator;

@@ -16,6 +16,11 @@ export const logPipelineRun = internalMutation({
     success: v.boolean(),
     errorMessage: v.optional(v.string()),
     details: v.optional(v.any()), // Additional metadata for debugging
+    // Token usage metrics (for AI stages)
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+    totalTokens: v.optional(v.number()),
+    estimatedCostUsd: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("pipelineRuns", args);

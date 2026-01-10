@@ -4,7 +4,16 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { ImageAnalysisResult, ImageType } from "./types";
-import { withRetry, formatUserError, optimizeImageForAI } from "./utils";
+import { 
+  withRetry, 
+  formatUserError, 
+  optimizeImageForAI,
+  extractOpenAITokens,
+  extractAnthropicTokens,
+  calculateCost,
+  type TokenUsage,
+  type AIProvider,
+} from "./utils";
 
 /**
  * Stage 1: Smart Image Analysis
@@ -86,11 +95,17 @@ RULES:
 
 4. Return ONLY valid JSON, no markdown formatting or explanation.`;
 
+// Result type that includes token usage
+interface AnalysisResultWithTokens {
+  result: ImageAnalysisResult;
+  tokenUsage: TokenUsage | null;
+}
+
 // Analyze image using OpenAI GPT-4 Vision
 async function analyzeWithOpenAI(
   imageBase64: string,
   onDeviceHints?: string[]
-): Promise<ImageAnalysisResult> {
+): Promise<AnalysisResultWithTokens> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
@@ -141,7 +156,12 @@ async function analyzeWithOpenAI(
     if (!jsonMatch) throw new Error("Could not parse JSON from response");
 
     const parsed = JSON.parse(jsonMatch[0]);
-    return normalizeAnalysisResult(parsed);
+    const tokenUsage = extractOpenAITokens(data);
+    
+    return {
+      result: normalizeAnalysisResult(parsed),
+      tokenUsage,
+    };
   }, { maxRetries: 2 });
 }
 
@@ -149,7 +169,7 @@ async function analyzeWithOpenAI(
 async function analyzeWithAnthropic(
   imageBase64: string,
   onDeviceHints?: string[]
-): Promise<ImageAnalysisResult> {
+): Promise<AnalysisResultWithTokens> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
@@ -202,7 +222,12 @@ async function analyzeWithAnthropic(
     if (!jsonMatch) throw new Error("Could not parse JSON from response");
 
     const parsed = JSON.parse(jsonMatch[0]);
-    return normalizeAnalysisResult(parsed);
+    const tokenUsage = extractAnthropicTokens(data);
+    
+    return {
+      result: normalizeAnalysisResult(parsed),
+      tokenUsage,
+    };
   }, { maxRetries: 2 });
 }
 
@@ -282,8 +307,9 @@ export const analyzeImage = action({
     const primaryProvider = args.provider || "anthropic";
     const fallbackProvider = primaryProvider === "anthropic" ? "openai" : "anthropic";
     
-    let usedProvider = primaryProvider;
+    let usedProvider: AIProvider = primaryProvider;
     let analysisResult: ImageAnalysisResult | null = null;
+    let tokenUsage: TokenUsage | null = null;
     let primaryError: Error | null = null;
 
     try {
@@ -302,11 +328,14 @@ export const analyzeImage = action({
       // Try primary provider first
       try {
         console.log(`[Analysis] Trying ${primaryProvider}...`);
+        let response: AnalysisResultWithTokens;
         if (primaryProvider === "openai") {
-          analysisResult = await analyzeWithOpenAI(imageBase64, args.onDeviceHints);
+          response = await analyzeWithOpenAI(imageBase64, args.onDeviceHints);
         } else {
-          analysisResult = await analyzeWithAnthropic(imageBase64, args.onDeviceHints);
+          response = await analyzeWithAnthropic(imageBase64, args.onDeviceHints);
         }
+        analysisResult = response.result;
+        tokenUsage = response.tokenUsage;
       } catch (error) {
         primaryError = error instanceof Error ? error : new Error(String(error));
         console.log(`[Analysis] ${primaryProvider} failed: ${primaryError.message}`);
@@ -315,11 +344,14 @@ export const analyzeImage = action({
         console.log(`[Analysis] Trying fallback ${fallbackProvider}...`);
         usedProvider = fallbackProvider;
         
+        let response: AnalysisResultWithTokens;
         if (fallbackProvider === "openai") {
-          analysisResult = await analyzeWithOpenAI(imageBase64, args.onDeviceHints);
+          response = await analyzeWithOpenAI(imageBase64, args.onDeviceHints);
         } else {
-          analysisResult = await analyzeWithAnthropic(imageBase64, args.onDeviceHints);
+          response = await analyzeWithAnthropic(imageBase64, args.onDeviceHints);
         }
+        analysisResult = response.result;
+        tokenUsage = response.tokenUsage;
       }
 
       // If using scanImages table, update the specific image record
@@ -331,7 +363,17 @@ export const analyzeImage = action({
         });
       }
 
-      // Log successful run
+      // Calculate cost if we have token usage
+      const estimatedCostUsd = tokenUsage 
+        ? calculateCost(usedProvider, tokenUsage.inputTokens, tokenUsage.outputTokens)
+        : undefined;
+
+      // Log token usage
+      if (tokenUsage) {
+        console.log(`[Analysis] Tokens: ${tokenUsage.inputTokens} in, ${tokenUsage.outputTokens} out, cost: $${estimatedCostUsd?.toFixed(6)}`);
+      }
+
+      // Log successful run with token metrics
       await ctx.runMutation(internal.pipeline.logging.logPipelineRun, {
         scanId: args.scanId,
         stage: "extraction",
@@ -343,6 +385,11 @@ export const analyzeImage = action({
           confidence: analysisResult.confidence,
           fallbackUsed: primaryError ? true : false,
         },
+        // Token metrics
+        inputTokens: tokenUsage?.inputTokens,
+        outputTokens: tokenUsage?.outputTokens,
+        totalTokens: tokenUsage?.totalTokens,
+        estimatedCostUsd,
       });
 
       return analysisResult;
