@@ -438,6 +438,142 @@
     .collapsible-content.collapsed {
       max-height: 0 !important;
     }
+    
+    /* Metrics Dashboard Styles */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .metric-card {
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    
+    .metric-value.success { color: var(--success); }
+    .metric-value.cost { color: var(--warning); }
+    
+    .metric-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 0.25rem;
+    }
+    
+    .metrics-section {
+      margin-bottom: 1.5rem;
+    }
+    
+    .metrics-section h3 {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+    }
+    
+    .metrics-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+    
+    .metrics-table th {
+      text-align: left;
+      color: var(--text-secondary);
+      font-weight: 500;
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--bg-tertiary);
+    }
+    
+    .metrics-table td {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--bg-primary);
+    }
+    
+    .metrics-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--bg-primary);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--success);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+    
+    .recent-runs-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .run-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      background: var(--bg-primary);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      font-size: 0.75rem;
+    }
+    
+    .run-item .stage {
+      font-weight: 500;
+      color: var(--accent);
+      min-width: 80px;
+    }
+    
+    .run-item .provider {
+      color: var(--text-secondary);
+      min-width: 80px;
+    }
+    
+    .run-item .duration {
+      color: var(--text-primary);
+      min-width: 60px;
+    }
+    
+    .run-item .tokens {
+      color: var(--info);
+      min-width: 80px;
+    }
+    
+    .run-item .cost {
+      color: var(--warning);
+      min-width: 60px;
+    }
+    
+    .run-item .status {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+    
+    .run-item .status.failed {
+      background: var(--error);
+    }
   </style>
 </head>
 <body>
@@ -526,6 +662,14 @@
         <div class="log-output" id="log-output">
           <div class="log-entry info">Waiting for image upload...</div>
         </div>
+      </div>
+    </div>
+    
+    <!-- Metrics Dashboard -->
+    <div class="panel" style="margin-top: 2rem;">
+      <h2>📊 Pipeline Metrics <button id="refresh-metrics-btn" style="width: auto; margin: 0; padding: 0.4rem 0.8rem; font-size: 0.8rem;">Refresh</button></h2>
+      <div id="metrics-content">
+        <div class="data-label" style="margin-bottom: 1rem;">Loading metrics...</div>
       </div>
     </div>
   </div>
@@ -885,8 +1029,147 @@
       content.classList.toggle('collapsed');
     };
     
+    // Metrics Dashboard Functions
+    async function loadMetrics() {
+      if (!convex) return;
+      
+      const metricsContent = document.getElementById('metrics-content');
+      metricsContent.innerHTML = '<div class="data-label">Loading metrics...</div>';
+      
+      try {
+        // Load all metrics in parallel
+        const [metrics, recentRuns, costSummary] = await Promise.all([
+          convex.query("metrics:getPipelineMetrics", { days: 7 }),
+          convex.query("metrics:getRecentPipelineRuns", { limit: 10 }),
+          convex.query("metrics:getCostSummary", { days: 7 }),
+        ]);
+        
+        renderMetrics(metrics, recentRuns, costSummary);
+      } catch (error) {
+        metricsContent.innerHTML = `<div class="log-entry error">Failed to load metrics: ${error.message}</div>`;
+      }
+    }
+    
+    function renderMetrics(metrics, recentRuns, costSummary) {
+      const metricsContent = document.getElementById('metrics-content');
+      
+      // Format cost
+      const formatCost = (cost) => cost < 0.01 ? '<$0.01' : `$${cost.toFixed(4)}`;
+      const formatDuration = (ms) => ms < 1000 ? `${ms}ms` : `${(ms/1000).toFixed(1)}s`;
+      
+      metricsContent.innerHTML = `
+        <!-- Overview Cards -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-value">${metrics.totalRuns}</div>
+            <div class="metric-label">Total Runs (7d)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value success">${metrics.successRate.toFixed(1)}%</div>
+            <div class="metric-label">Success Rate</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${formatDuration(metrics.avgDurationMs)}</div>
+            <div class="metric-label">Avg Duration</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value cost">${formatCost(metrics.totalCostUsd)}</div>
+            <div class="metric-label">Total Cost (7d)</div>
+          </div>
+        </div>
+        
+        <!-- Stage Performance -->
+        <div class="metrics-section">
+          <h3>Stage Performance</h3>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>Runs</th>
+                <th>Success</th>
+                <th>Avg Time</th>
+                <th>p95 Time</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(metrics.byStage).map(([stage, data]) => `
+                <tr>
+                  <td style="text-transform: capitalize;">${stage}</td>
+                  <td>${data.count}</td>
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <div class="progress-bar" style="width: 60px;">
+                        <div class="progress-bar-fill" style="width: ${data.successRate}%;"></div>
+                      </div>
+                      <span>${data.successRate.toFixed(0)}%</span>
+                    </div>
+                  </td>
+                  <td>${formatDuration(data.avgDurationMs)}</td>
+                  <td>${formatDuration(data.p95DurationMs)}</td>
+                  <td>${formatCost(data.totalCostUsd)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Provider Breakdown -->
+        <div class="metrics-section">
+          <h3>Provider Breakdown</h3>
+          <table class="metrics-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Runs</th>
+                <th>Avg Input Tokens</th>
+                <th>Avg Output Tokens</th>
+                <th>Total Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${Object.entries(metrics.byProvider).map(([provider, data]) => `
+                <tr>
+                  <td style="text-transform: capitalize;">${provider}</td>
+                  <td>${data.count}</td>
+                  <td>${data.avgInputTokens > 0 ? Math.round(data.avgInputTokens).toLocaleString() : '-'}</td>
+                  <td>${data.avgOutputTokens > 0 ? Math.round(data.avgOutputTokens).toLocaleString() : '-'}</td>
+                  <td>${formatCost(data.totalCostUsd)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Recent Runs -->
+        <div class="metrics-section">
+          <h3>Recent Pipeline Runs</h3>
+          <div class="recent-runs-list">
+            ${recentRuns.length === 0 ? '<div style="color: var(--text-secondary); padding: 1rem;">No pipeline runs yet</div>' : 
+              recentRuns.map(run => `
+                <div class="run-item">
+                  <span class="stage">${run.stage}</span>
+                  <span class="provider">${run.provider}</span>
+                  <span class="duration">${formatDuration(run.durationMs)}</span>
+                  <span class="tokens">${run.totalTokens ? run.totalTokens.toLocaleString() + ' tok' : '-'}</span>
+                  <span class="cost">${run.estimatedCostUsd ? formatCost(run.estimatedCostUsd) : '-'}</span>
+                  <span class="status ${run.success ? '' : 'failed'}" title="${run.success ? 'Success' : run.errorMessage || 'Failed'}"></span>
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>
+      `;
+    }
+    
+    // Refresh metrics button
+    document.getElementById('refresh-metrics-btn').addEventListener('click', loadMetrics);
+    
     // Initialize
     initConvex();
+    
+    // Load metrics after a short delay to ensure convex is connected
+    setTimeout(loadMetrics, 1500);
   </script>
 </body>
 </html>

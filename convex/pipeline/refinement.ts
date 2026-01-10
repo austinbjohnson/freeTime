@@ -9,7 +9,15 @@ import type {
   RefinedFindings,
   ComparableListing,
 } from "./types";
-import { withRetry, formatUserError } from "./utils";
+import { 
+  withRetry, 
+  formatUserError,
+  extractOpenAITokens,
+  extractAnthropicTokens,
+  calculateCost,
+  type TokenUsage,
+  type AIProvider,
+} from "./utils";
 
 /**
  * Stage 3: AI Refinement
@@ -70,11 +78,17 @@ Return ONLY valid JSON in this exact format:
   "confidence": 0.7
 }`;
 
+// Result type that includes token usage
+interface RefinementResultWithTokens {
+  result: RefinedFindings;
+  tokenUsage: TokenUsage | null;
+}
+
 // Refine using OpenAI (with retry)
 async function refineWithOpenAI(
   extractedData: ExtractedData,
   researchResults: ResearchResults
-): Promise<RefinedFindings> {
+): Promise<RefinementResultWithTokens> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
@@ -124,7 +138,12 @@ async function refineWithOpenAI(
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Could not parse JSON from response");
 
-    return JSON.parse(jsonMatch[0]) as RefinedFindings;
+    const tokenUsage = extractOpenAITokens(data);
+    
+    return {
+      result: JSON.parse(jsonMatch[0]) as RefinedFindings,
+      tokenUsage,
+    };
   }, { maxRetries: 2 });
 }
 
@@ -132,7 +151,7 @@ async function refineWithOpenAI(
 async function refineWithAnthropic(
   extractedData: ExtractedData,
   researchResults: ResearchResults
-): Promise<RefinedFindings> {
+): Promise<RefinementResultWithTokens> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
@@ -183,7 +202,12 @@ async function refineWithAnthropic(
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("Could not parse JSON from response");
 
-    return JSON.parse(jsonMatch[0]) as RefinedFindings;
+    const tokenUsage = extractAnthropicTokens(data);
+    
+    return {
+      result: JSON.parse(jsonMatch[0]) as RefinedFindings,
+      tokenUsage,
+    };
   }, { maxRetries: 2 });
 }
 
@@ -279,8 +303,9 @@ export const refineFindings = action({
     const extractedData = args.extractedData as ExtractedData;
     const researchResults = args.researchResults as ResearchResults;
     
-    let usedProvider = primaryProvider;
+    let usedProvider: AIProvider | "stats" = primaryProvider === "stats" ? "stats" : primaryProvider;
     let refinedFindings: RefinedFindings | null = null;
+    let tokenUsage: TokenUsage | null = null;
     let primaryError: Error | null = null;
 
     // If stats requested, just do stats
@@ -307,11 +332,14 @@ export const refineFindings = action({
       // Try primary AI provider
       try {
         console.log(`[Refinement] Trying ${primaryProvider}...`);
+        let response: RefinementResultWithTokens;
         if (primaryProvider === "openai") {
-          refinedFindings = await refineWithOpenAI(extractedData, researchResults);
+          response = await refineWithOpenAI(extractedData, researchResults);
         } else {
-          refinedFindings = await refineWithAnthropic(extractedData, researchResults);
+          response = await refineWithAnthropic(extractedData, researchResults);
         }
+        refinedFindings = response.result;
+        tokenUsage = response.tokenUsage;
       } catch (error) {
         primaryError = error instanceof Error ? error : new Error(String(error));
         console.log(`[Refinement] ${primaryProvider} failed: ${primaryError.message}`);
@@ -320,11 +348,14 @@ export const refineFindings = action({
         console.log(`[Refinement] Trying fallback ${fallbackProvider}...`);
         usedProvider = fallbackProvider;
         
+        let response: RefinementResultWithTokens;
         if (fallbackProvider === "openai") {
-          refinedFindings = await refineWithOpenAI(extractedData, researchResults);
+          response = await refineWithOpenAI(extractedData, researchResults);
         } else {
-          refinedFindings = await refineWithAnthropic(extractedData, researchResults);
+          response = await refineWithAnthropic(extractedData, researchResults);
         }
+        refinedFindings = response.result;
+        tokenUsage = response.tokenUsage;
       }
 
       // Update scan with refined findings
@@ -333,7 +364,17 @@ export const refineFindings = action({
         refinedFindings,
       });
 
-      // Log successful run
+      // Calculate cost if we have token usage
+      const estimatedCostUsd = tokenUsage && usedProvider !== "stats"
+        ? calculateCost(usedProvider, tokenUsage.inputTokens, tokenUsage.outputTokens)
+        : undefined;
+
+      // Log token usage
+      if (tokenUsage) {
+        console.log(`[Refinement] Tokens: ${tokenUsage.inputTokens} in, ${tokenUsage.outputTokens} out, cost: $${estimatedCostUsd?.toFixed(6)}`);
+      }
+
+      // Log successful run with token metrics
       await ctx.runMutation(internal.pipeline.logging.logPipelineRun, {
         scanId: args.scanId,
         stage: "refinement",
@@ -341,6 +382,11 @@ export const refineFindings = action({
         durationMs: Date.now() - startTime,
         success: true,
         details: primaryError ? { fallbackUsed: true, primaryError: primaryError.message } : undefined,
+        // Token metrics
+        inputTokens: tokenUsage?.inputTokens,
+        outputTokens: tokenUsage?.outputTokens,
+        totalTokens: tokenUsage?.totalTokens,
+        estimatedCostUsd,
       });
 
       return refinedFindings;

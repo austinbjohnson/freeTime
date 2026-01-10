@@ -238,3 +238,81 @@ export function formatUserError(error: Error): string {
   return "An error occurred processing your image. Please try again.";
 }
 
+// ============================================
+// Token Usage and Cost Tracking
+// ============================================
+
+export type AIProvider = "openai" | "anthropic";
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+// Pricing per 1M tokens (USD) - Jan 2026
+// Source: https://openai.com/pricing and https://anthropic.com/pricing
+const AI_PRICING: Record<AIProvider, { input: number; output: number }> = {
+  openai: {
+    // GPT-4o pricing
+    input: 2.50,   // $2.50 per 1M input tokens
+    output: 10.00, // $10.00 per 1M output tokens
+  },
+  anthropic: {
+    // Claude Sonnet 4 pricing
+    input: 3.00,   // $3.00 per 1M input tokens
+    output: 15.00, // $15.00 per 1M output tokens
+  },
+};
+
+/**
+ * Calculate estimated cost in USD for AI API usage
+ */
+export function calculateCost(
+  provider: AIProvider,
+  inputTokens: number,
+  outputTokens: number
+): number {
+  const pricing = AI_PRICING[provider];
+  if (!pricing) {
+    console.warn(`[Cost] Unknown provider: ${provider}, defaulting to OpenAI pricing`);
+    return calculateCost("openai", inputTokens, outputTokens);
+  }
+  
+  const inputCost = (inputTokens / 1_000_000) * pricing.input;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+  
+  return inputCost + outputCost;
+}
+
+/**
+ * Extract token usage from OpenAI API response
+ */
+export function extractOpenAITokens(response: Record<string, unknown>): TokenUsage | null {
+  const usage = response.usage as Record<string, number> | undefined;
+  if (!usage) return null;
+  
+  return {
+    inputTokens: usage.prompt_tokens || 0,
+    outputTokens: usage.completion_tokens || 0,
+    totalTokens: usage.total_tokens || 0,
+  };
+}
+
+/**
+ * Extract token usage from Anthropic API response
+ */
+export function extractAnthropicTokens(response: Record<string, unknown>): TokenUsage | null {
+  const usage = response.usage as Record<string, number> | undefined;
+  if (!usage) return null;
+  
+  const inputTokens = usage.input_tokens || 0;
+  const outputTokens = usage.output_tokens || 0;
+  
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+  };
+}
+
