@@ -104,4 +104,92 @@ export default defineSchema({
     .index("by_scan", ["scanId"])
     .index("by_stage", ["stage"])
     .index("by_provider", ["provider"]),
+
+  // ============================================
+  // Anonymized Scan Analytics (Crowdsourced Data)
+  // ============================================
+
+  // Raw anonymized scan data for crowdsourced pricing intelligence
+  // NO PII: userId, imageStorageId, precise timestamps, location
+  scanAnalytics: defineTable({
+    // Content hash for deduplication (hash of brand+style+category)
+    contentHash: v.string(),
+    
+    // Item identification (anonymized)
+    brand: v.optional(v.string()),           // Canonical brand name
+    brandTier: v.optional(v.string()),       // luxury/premium/mid-range/budget
+    category: v.optional(v.string()),        // sweater/jacket/pants/etc
+    style: v.optional(v.string()),           // Cowichan/varsity/bomber/etc
+    
+    // Item attributes
+    materials: v.optional(v.array(v.string())),
+    countryOfOrigin: v.optional(v.string()),
+    estimatedEra: v.optional(v.string()),    // vintage/1980s/modern/etc
+    
+    // Condition data
+    conditionGrade: v.optional(v.string()),  // excellent/very good/good/fair/poor
+    
+    // Pricing data (the gold!)
+    priceLow: v.optional(v.number()),
+    priceHigh: v.optional(v.number()),
+    priceRecommended: v.optional(v.number()),
+    currency: v.string(),                    // USD, CAD, EUR, etc
+    
+    // Market intelligence
+    marketActivity: v.optional(v.string()),  // hot/moderate/slow/rare
+    demandLevel: v.optional(v.string()),     // high/medium/low
+    activeListingsCount: v.optional(v.number()),
+    soldListingsCount: v.optional(v.number()),
+    
+    // Confidence and quality
+    confidence: v.optional(v.number()),      // 0-1 from refinement
+    
+    // Coarse time bucket for trends (privacy-safe)
+    timeBucket: v.string(),                  // "2026-01" (YYYY-MM format)
+  })
+    .index("by_content_hash", ["contentHash"])
+    .index("by_brand", ["brand"])
+    .index("by_brand_category", ["brand", "category"])
+    .index("by_time_bucket", ["timeBucket"]),
+
+  // Aggregated brand statistics (computed from scanAnalytics)
+  brandStats: defineTable({
+    // Composite key: brand + category + condition (or "all" for totals)
+    brand: v.string(),
+    category: v.string(),                    // Specific category or "_all"
+    conditionGrade: v.string(),              // Specific grade or "_all"
+    
+    // Sample metrics
+    sampleSize: v.number(),
+    
+    // Price statistics (in USD)
+    priceMin: v.number(),
+    priceMax: v.number(),
+    priceAvg: v.number(),
+    priceMedian: v.number(),
+    priceP25: v.number(),                    // 25th percentile
+    priceP75: v.number(),                    // 75th percentile
+    
+    // Market activity
+    avgMarketActivity: v.optional(v.string()), // Most common activity level
+    avgDemandLevel: v.optional(v.string()),    // Most common demand level
+    
+    // Trend data
+    priceChange30d: v.optional(v.number()),  // % change vs 30 days ago
+    volumeChange30d: v.optional(v.number()), // % change in scan volume
+    
+    // Last updated
+    lastUpdated: v.number(),                 // Unix timestamp
+  })
+    .index("by_brand", ["brand"])
+    .index("by_brand_category", ["brand", "category"])
+    .index("by_brand_category_condition", ["brand", "category", "conditionGrade"]),
+
+  // User analytics preferences
+  userAnalyticsPrefs: defineTable({
+    userId: v.id("users"),
+    contributesToAnalytics: v.boolean(),     // Default: true (opt-out available)
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
 });

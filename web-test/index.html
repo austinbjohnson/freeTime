@@ -672,6 +672,14 @@
         <div class="data-label" style="margin-bottom: 1rem;">Loading metrics...</div>
       </div>
     </div>
+    
+    <!-- Analytics Dashboard -->
+    <div class="panel" style="margin-top: 2rem;">
+      <h2>📈 Scan Analytics <button id="refresh-analytics-btn" style="width: auto; margin: 0; padding: 0.4rem 0.8rem; font-size: 0.8rem;">Refresh</button></h2>
+      <div id="analytics-content">
+        <div class="data-label" style="margin-bottom: 1rem;">Loading analytics...</div>
+      </div>
+    </div>
   </div>
 
   <script type="module">
@@ -1165,11 +1173,74 @@
     // Refresh metrics button
     document.getElementById('refresh-metrics-btn').addEventListener('click', loadMetrics);
     
+    // Analytics Dashboard Functions
+    async function loadAnalytics() {
+      if (!convex) return;
+      
+      const analyticsContent = document.getElementById('analytics-content');
+      analyticsContent.innerHTML = '<div class="data-label">Loading analytics...</div>';
+      
+      try {
+        const summary = await convex.query("analytics:getAnalyticsSummary", {});
+        renderAnalytics(summary);
+      } catch (error) {
+        analyticsContent.innerHTML = `<div class="log-entry error">Failed to load analytics: ${error.message}</div>`;
+      }
+    }
+    
+    function renderAnalytics(summary) {
+      const analyticsContent = document.getElementById('analytics-content');
+      
+      analyticsContent.innerHTML = `
+        <!-- Analytics Overview Cards -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-value">${summary.totalScansAnonymized}</div>
+            <div class="metric-label">Scans Captured</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${summary.uniqueBrands}</div>
+            <div class="metric-label">Unique Brands</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value">${summary.scansWithPriceData}</div>
+            <div class="metric-label">With Price Data</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-value cost">$${summary.avgRecommendedPrice.toFixed(0)}</div>
+            <div class="metric-label">Avg Rec. Price</div>
+          </div>
+        </div>
+        
+        <div class="metrics-section">
+          <h3>Crowdsourced Data</h3>
+          <div class="result-content" style="padding: 1rem; background: var(--bg-primary); border-radius: 8px;">
+            <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+              ${summary.totalScansAnonymized === 0 
+                ? '📊 No anonymized data collected yet. Process some scans to start building crowdsourced pricing intelligence!'
+                : `📊 <strong>${summary.totalScansAnonymized}</strong> anonymized scans have contributed to our pricing database across <strong>${summary.uniqueBrands}</strong> brands. This data helps improve pricing recommendations for everyone.`
+              }
+            </p>
+            ${summary.brandStatsComputed > 0 
+              ? `<p style="color: var(--success); font-size: 0.8rem; margin-top: 0.5rem;">✓ ${summary.brandStatsComputed} brand statistics computed</p>`
+              : ''
+            }
+          </div>
+        </div>
+      `;
+    }
+    
+    // Refresh analytics button
+    document.getElementById('refresh-analytics-btn').addEventListener('click', loadAnalytics);
+    
     // Initialize
     initConvex();
     
-    // Load metrics after a short delay to ensure convex is connected
-    setTimeout(loadMetrics, 1500);
+    // Load metrics and analytics after a short delay to ensure convex is connected
+    setTimeout(() => {
+      loadMetrics();
+      loadAnalytics();
+    }, 1500);
   </script>
 </body>
 </html>
