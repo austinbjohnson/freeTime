@@ -2,6 +2,9 @@
 .env.local
 .env
 
+# Security
+SECURITY_NOTES.md
+
 # Node
 node_modules/
 
