@@ -37,6 +37,35 @@ freeTime/
 
 **This project uses GitHub Issues exclusively** for tracking work.
 
+### Git Workflow
+
+**Always use feature branches tied to issues:**
+
+```bash
+# Create a feature branch for issue #42
+git checkout -b feature/42-add-multi-image-upload
+
+# Do work, commit with issue reference
+git commit -m "feat: add multi-image upload (#42)"
+
+# Push and create PR
+git push -u origin feature/42-add-multi-image-upload
+gh pr create --fill
+
+# After merge, clean up
+git checkout main && git pull
+git branch -d feature/42-add-multi-image-upload
+```
+
+**Branch naming convention:**
+- `feature/XX-short-description` - New features
+- `fix/XX-short-description` - Bug fixes
+- `docs/XX-short-description` - Documentation only
+
+**Commit messages should reference issues:** `feat: description (#XX)` or `Closes #XX`
+
+### GitHub CLI Commands
+
 ```bash
 # Create issue
 gh issue create --title "Title" --label "feature" --body "Description"
