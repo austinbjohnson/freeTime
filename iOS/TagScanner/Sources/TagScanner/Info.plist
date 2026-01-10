@@ -55,5 +55,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>WORKOS_CLIENT_ID</key>
+	<string>$(WORKOS_CLIENT_ID)</string>
+	<key>WORKOS_REDIRECT_URI</key>
+	<string>tagscanner://callback</string>
 </dict>
 </plist>

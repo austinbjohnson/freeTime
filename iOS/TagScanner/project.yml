@@ -54,6 +54,8 @@ targets:
             CFBundleURLSchemes:
               - tagscanner
         CONVEX_URL: "https://qualified-sheep-863.convex.cloud"
+        WORKOS_CLIENT_ID: "$(WORKOS_CLIENT_ID)"
+        WORKOS_REDIRECT_URI: "tagscanner://callback"
     entitlements:
       path: Sources/TagScanner/TagScanner.entitlements
 

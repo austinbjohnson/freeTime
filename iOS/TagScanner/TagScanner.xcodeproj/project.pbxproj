@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -34,7 +34,7 @@
 		9002E83D1277D5F94C24ADBB /* ScanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanDetailView.swift; sourceTree = "<group>"; };
 		BE29713EF1D25959B98E7CCD /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		C3F87D1FE37B180D7B41A96A /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
-		C6B836620BCE91D64CE279A7 /* TagScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TagScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6B836620BCE91D64CE279A7 /* TagScanner.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TagScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D51D45449793BD915CDC5CF7 /* Scan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scan.swift; sourceTree = "<group>"; };
 		F9DA499FFD9F5EC45D877FC9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -173,6 +173,7 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					80CE6DE83614675EF05469C2 = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -187,6 +188,7 @@
 			);
 			mainGroup = 9F4C4A416F3F1994101722C9;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -302,12 +304,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Sources/TagScanner/TagScanner.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 7P7TT2C3UR;
 				INFOPLIST_FILE = Sources/TagScanner/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tagscanner.app;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -382,12 +380,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Sources/TagScanner/TagScanner.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 7P7TT2C3UR;
 				INFOPLIST_FILE = Sources/TagScanner/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tagscanner.app;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
