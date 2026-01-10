@@ -11,7 +11,7 @@ Free Time is a clothing analysis application that helps users determine resale v
 - **Backend**: Convex (serverless functions, database, file storage)
 - **Auth**: WorkOS AuthKit
 - **iOS**: Swift/SwiftUI with Vision framework
-- **AI**: Anthropic Claude / OpenAI GPT-4 (abstracted for swappability)
+- **AI**: Anthropic Claude Haiku 4.5 / OpenAI GPT-5 Mini (abstracted for swappability)
 - **Search**: SerpAPI for web research
 
 ## Project Structure
@@ -143,6 +143,15 @@ Sharp has native binaries that don't work in Convex's serverless environment. Ji
 4. Target: under 4MB for safe base64 encoding
 
 ## AI Providers
+
+### Current Models
+
+> ⚠️ **DO NOT change models without explicit user approval.**
+
+| Provider | Model | Used In |
+|----------|-------|---------|
+| **Anthropic** | `claude-haiku-4-5-20251001` | Extraction, Refinement |
+| **OpenAI** | `gpt-5-mini-2025-08-07` | Extraction, Refinement (fallback) |
 
 ### Configuration
 Set in Convex environment variables:

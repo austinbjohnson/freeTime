@@ -106,7 +106,8 @@ async function analyzeWithOpenAI(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        // Model: Only change with explicit user approval
+        model: "gpt-5-mini-2025-08-07",
         messages: [
           {
             role: "user",
@@ -165,7 +166,8 @@ async function analyzeWithAnthropic(
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        // Model: Only change with explicit user approval
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 2000,
         messages: [
           {
