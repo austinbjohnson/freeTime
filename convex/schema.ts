@@ -58,6 +58,34 @@ export default defineSchema({
     .index("by_scan", ["scanId"])
     .index("by_type", ["scanId", "imageType"]),
 
+  // Brand reference database
+  brands: defineTable({
+    name: v.string(),                    // Canonical name: "Ralph Lauren"
+    aliases: v.array(v.string()),        // ["POLO RALPH LAUREN", "POLO RL"]
+    tier: v.union(
+      v.literal("luxury"),
+      v.literal("premium"),
+      v.literal("mid-range"),
+      v.literal("budget"),
+      v.literal("vintage"),
+      v.literal("unknown")
+    ),
+    parentCompany: v.optional(v.string()),
+    categories: v.array(v.string()),     // ["apparel", "accessories"]
+    rnNumbers: v.optional(v.array(v.string())),  // Known US RN registrations
+    wplNumbers: v.optional(v.array(v.string())), // Wool Products Label numbers
+    founded: v.optional(v.string()),
+    website: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    // Stats enriched from scan analytics (future)
+    avgResalePrice: v.optional(v.number()),
+    scanCount: v.optional(v.number()),
+    priceConfidence: v.optional(v.number()),
+  })
+    .index("by_name", ["name"])
+    .searchIndex("search_name", { searchField: "name" })
+    .searchIndex("search_aliases", { searchField: "aliases" }),
+
   // Audit log for pipeline runs
   pipelineRuns: defineTable({
     scanId: v.id("scans"),
