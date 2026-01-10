@@ -7,104 +7,115 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		3BC8013AA44BD099402A0DF2 /* TagScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB22CBC8DC7A24138D15A4ED /* TagScannerApp.swift */; };
-		3D544D7B98FE66D5EBEC9D2C /* Scan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 004B9A3CB7C2FE374FFAA49E /* Scan.swift */; };
-		400135A29BC58816F99DDA0B /* ScanListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741DEB9780E150CD4C8B4EC3 /* ScanListView.swift */; };
-		46C95CB9BAE038784DBE7D51 /* ScanDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53E4758467B95A2A06710AB /* ScanDetailView.swift */; };
-		4D4D79117AEDDE69A69D2DBA /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4C2C612A6E13B0E7DB13806 /* User.swift */; };
-		625308FDEBB3434FDEB52ACE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 24BB85DDC54041D9BAE52B90 /* Assets.xcassets */; };
-		7FD9AB41D768CC3687B9A92D /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C99E25D2EEE9757E2B6C4E /* MainTabView.swift */; };
-		9125A3E7B90FF9139DE05981 /* ConvexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D238F397FDCBEA38EF881C /* ConvexService.swift */; };
-		9C06EB338A326CA61CA03B38 /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81F963B1C9801BA2AD10821 /* VisionService.swift */; };
-		B2D00DFD5166C1B163C3189A /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44A22D77A014B739E5C044C3 /* AuthService.swift */; };
-		C9EDFD66DE0CAF74F5E45FB9 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 097D197743FE16DB7111C92E /* CameraView.swift */; };
-		F06B63A0FBD8FC67F7040F1C /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C59C68B96CEFF5EE23D0A /* LoginView.swift */; };
+		018C790C58BDDB88C19F3803 /* ConvexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C910863456D9CBC2C4CF6E6E /* ConvexService.swift */; };
+		4094B7C0077165F358DDD67B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */; };
+		576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4404FD99B4D6E383A2063FDD /* MainTabView.swift */; };
+		5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E401DC467440318E6A2B87 /* AuthService.swift */; };
+		675504F9E1CEBF59099524A5 /* ScanDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D360E4762528815F579E1E /* ScanDetailView.swift */; };
+		94A8D05FCC3D6FBC6986FB3C /* Scan.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DE599933A0AE725725FD5E /* Scan.swift */; };
+		BE1E7A5741B284B4E20ABF93 /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 397872C61E4D084B9B91C503 /* VisionService.swift */; };
+		BE57D16F95DBBCBA7E923547 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A95E9871B8DA4D35925E8B8 /* User.swift */; };
+		D0ED05A6E0ED1E6D80866298 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4CB0E6FD98E2465903A51E6 /* LoginView.swift */; };
+		F206756CC46D9D8C9FBDE4C8 /* TagScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD4594CD3D92149EE7A79914 /* TagScannerApp.swift */; };
+		FB17DCA7A7DFF97C1982F0E7 /* ScanListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E688C9F8012269D85D230B42 /* ScanListView.swift */; };
+		FDCB1A94BE17ED02DD5A98C4 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFAE0C44E0209D4C95ECD310 /* CameraView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		004B9A3CB7C2FE374FFAA49E /* Scan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scan.swift; sourceTree = "<group>"; };
-		05D238F397FDCBEA38EF881C /* ConvexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexService.swift; sourceTree = "<group>"; };
-		097D197743FE16DB7111C92E /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
-		24BB85DDC54041D9BAE52B90 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		44A22D77A014B739E5C044C3 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
-		509C59C68B96CEFF5EE23D0A /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
-		54C99E25D2EEE9757E2B6C4E /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
-		741DEB9780E150CD4C8B4EC3 /* ScanListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanListView.swift; sourceTree = "<group>"; };
-		8DBB5E1C070E6286BB4192E1 /* TagScanner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TagScanner.entitlements; sourceTree = "<group>"; };
+		2EDBE211BAF7B5E4566FC7E9 /* FreeTime.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FreeTime.entitlements; sourceTree = "<group>"; };
+		397872C61E4D084B9B91C503 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
+		4404FD99B4D6E383A2063FDD /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		4A95E9871B8DA4D35925E8B8 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		9163F1C7563F75C94CC6F886 /* FreeTime.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FreeTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A4C2C612A6E13B0E7DB13806 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
-		AA5564420C92403B6DEFBE98 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		B81F963B1C9801BA2AD10821 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
-		CB22CBC8DC7A24138D15A4ED /* TagScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagScannerApp.swift; sourceTree = "<group>"; };
-		F53E4758467B95A2A06710AB /* ScanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanDetailView.swift; sourceTree = "<group>"; };
+		A6E401DC467440318E6A2B87 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C910863456D9CBC2C4CF6E6E /* ConvexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexService.swift; sourceTree = "<group>"; };
+		CD4594CD3D92149EE7A79914 /* TagScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagScannerApp.swift; sourceTree = "<group>"; };
+		DC98318972295F8445DAE5E4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E4CB0E6FD98E2465903A51E6 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		E688C9F8012269D85D230B42 /* ScanListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanListView.swift; sourceTree = "<group>"; };
+		EFAE0C44E0209D4C95ECD310 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
+		F5D360E4762528815F579E1E /* ScanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanDetailView.swift; sourceTree = "<group>"; };
+		F6DE599933A0AE725725FD5E /* Scan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scan.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		0FF8B9D9D93236E471687FF0 /* Features */ = {
+		0029689235421643C7D9E3CB /* Scans */ = {
 			isa = PBXGroup;
 			children = (
-				CFA342A6FFCD4F2AE277E57C /* Auth */,
-				FDFB6BD8117B66257E51F9CA /* Camera */,
-				9753B362A2B29612B431217F /* Main */,
-				CB7598C3ADD257CEEC3DD896 /* Scans */,
+				F5D360E4762528815F579E1E /* ScanDetailView.swift */,
+				E688C9F8012269D85D230B42 /* ScanListView.swift */,
 			);
-			path = Features;
+			path = Scans;
 			sourceTree = "<group>";
 		};
-		1F24A9DD8C8AC9DCAF5AA088 /* App */ = {
+		23874FC8C12F23B46610E433 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
-				CB22CBC8DC7A24138D15A4ED /* TagScannerApp.swift */,
+				E4CB0E6FD98E2465903A51E6 /* LoginView.swift */,
 			);
-			path = App;
+			path = Auth;
 			sourceTree = "<group>";
 		};
 		2F32282CC4C5E9E2A5E4F48F = {
 			isa = PBXGroup;
 			children = (
-				C2C0317C0F1AB84D13ACB22B /* TagScanner */,
+				D0DE567D1EBB405540891247 /* FreeTime */,
 				DD367ECF253F9F4B27A066AA /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		9753B362A2B29612B431217F /* Main */ = {
+		64A02E3AADCC09DF1B18B65F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				54C99E25D2EEE9757E2B6C4E /* MainTabView.swift */,
+				CD4594CD3D92149EE7A79914 /* TagScannerApp.swift */,
 			);
-			path = Main;
+			path = App;
 			sourceTree = "<group>";
 		};
-		C2C0317C0F1AB84D13ACB22B /* TagScanner */ = {
+		966934C3C1E224046FEB4611 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				24BB85DDC54041D9BAE52B90 /* Assets.xcassets */,
-				AA5564420C92403B6DEFBE98 /* Info.plist */,
-				8DBB5E1C070E6286BB4192E1 /* TagScanner.entitlements */,
-				1F24A9DD8C8AC9DCAF5AA088 /* App */,
-				0FF8B9D9D93236E471687FF0 /* Features */,
-				F7DF706830EB1CB2C3D5256C /* Models */,
-				DD7F066E0059AB12F2943BC2 /* Services */,
+				F6DE599933A0AE725725FD5E /* Scan.swift */,
+				4A95E9871B8DA4D35925E8B8 /* User.swift */,
 			);
-			name = TagScanner;
-			path = Sources/TagScanner;
+			path = Models;
 			sourceTree = "<group>";
 		};
-		CB7598C3ADD257CEEC3DD896 /* Scans */ = {
+		9C0BB72F1724557C5626762F /* Features */ = {
 			isa = PBXGroup;
 			children = (
-				F53E4758467B95A2A06710AB /* ScanDetailView.swift */,
-				741DEB9780E150CD4C8B4EC3 /* ScanListView.swift */,
+				23874FC8C12F23B46610E433 /* Auth */,
+				EDAA6A0A2AC0A16AEC18E933 /* Camera */,
+				FC24B751561F631EDF04EDF2 /* Main */,
+				0029689235421643C7D9E3CB /* Scans */,
 			);
-			path = Scans;
+			path = Features;
 			sourceTree = "<group>";
 		};
-		CFA342A6FFCD4F2AE277E57C /* Auth */ = {
+		B8D6165667C971DFBADCF20B /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				509C59C68B96CEFF5EE23D0A /* LoginView.swift */,
+				A6E401DC467440318E6A2B87 /* AuthService.swift */,
+				C910863456D9CBC2C4CF6E6E /* ConvexService.swift */,
+				397872C61E4D084B9B91C503 /* VisionService.swift */,
 			);
-			path = Auth;
+			path = Services;
+			sourceTree = "<group>";
+		};
+		D0DE567D1EBB405540891247 /* FreeTime */ = {
+			isa = PBXGroup;
+			children = (
+				A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */,
+				2EDBE211BAF7B5E4566FC7E9 /* FreeTime.entitlements */,
+				DC98318972295F8445DAE5E4 /* Info.plist */,
+				64A02E3AADCC09DF1B18B65F /* App */,
+				9C0BB72F1724557C5626762F /* Features */,
+				966934C3C1E224046FEB4611 /* Models */,
+				B8D6165667C971DFBADCF20B /* Services */,
+			);
+			name = FreeTime;
+			path = Sources/FreeTime;
 			sourceTree = "<group>";
 		};
 		DD367ECF253F9F4B27A066AA /* Products */ = {
@@ -115,31 +126,20 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		DD7F066E0059AB12F2943BC2 /* Services */ = {
+		EDAA6A0A2AC0A16AEC18E933 /* Camera */ = {
 			isa = PBXGroup;
 			children = (
-				44A22D77A014B739E5C044C3 /* AuthService.swift */,
-				05D238F397FDCBEA38EF881C /* ConvexService.swift */,
-				B81F963B1C9801BA2AD10821 /* VisionService.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		F7DF706830EB1CB2C3D5256C /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				004B9A3CB7C2FE374FFAA49E /* Scan.swift */,
-				A4C2C612A6E13B0E7DB13806 /* User.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		FDFB6BD8117B66257E51F9CA /* Camera */ = {
-			isa = PBXGroup;
-			children = (
-				097D197743FE16DB7111C92E /* CameraView.swift */,
+				EFAE0C44E0209D4C95ECD310 /* CameraView.swift */,
 			);
 			path = Camera;
+			sourceTree = "<group>";
+		};
+		FC24B751561F631EDF04EDF2 /* Main */ = {
+			isa = PBXGroup;
+			children = (
+				4404FD99B4D6E383A2063FDD /* MainTabView.swift */,
+			);
+			path = Main;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -202,7 +202,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				625308FDEBB3434FDEB52ACE /* Assets.xcassets in Resources */,
+				4094B7C0077165F358DDD67B /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -213,17 +213,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B2D00DFD5166C1B163C3189A /* AuthService.swift in Sources */,
-				C9EDFD66DE0CAF74F5E45FB9 /* CameraView.swift in Sources */,
-				9125A3E7B90FF9139DE05981 /* ConvexService.swift in Sources */,
-				F06B63A0FBD8FC67F7040F1C /* LoginView.swift in Sources */,
-				7FD9AB41D768CC3687B9A92D /* MainTabView.swift in Sources */,
-				3D544D7B98FE66D5EBEC9D2C /* Scan.swift in Sources */,
-				46C95CB9BAE038784DBE7D51 /* ScanDetailView.swift in Sources */,
-				400135A29BC58816F99DDA0B /* ScanListView.swift in Sources */,
-				3BC8013AA44BD099402A0DF2 /* TagScannerApp.swift in Sources */,
-				4D4D79117AEDDE69A69D2DBA /* User.swift in Sources */,
-				9C06EB338A326CA61CA03B38 /* VisionService.swift in Sources */,
+				5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */,
+				FDCB1A94BE17ED02DD5A98C4 /* CameraView.swift in Sources */,
+				018C790C58BDDB88C19F3803 /* ConvexService.swift in Sources */,
+				D0ED05A6E0ED1E6D80866298 /* LoginView.swift in Sources */,
+				576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */,
+				94A8D05FCC3D6FBC6986FB3C /* Scan.swift in Sources */,
+				675504F9E1CEBF59099524A5 /* ScanDetailView.swift in Sources */,
+				FB17DCA7A7DFF97C1982F0E7 /* ScanListView.swift in Sources */,
+				F206756CC46D9D8C9FBDE4C8 /* TagScannerApp.swift in Sources */,
+				BE57D16F95DBBCBA7E923547 /* User.swift in Sources */,
+				BE1E7A5741B284B4E20ABF93 /* VisionService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -234,9 +234,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Sources/TagScanner/TagScanner.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Sources/FreeTime/FreeTime.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				INFOPLIST_FILE = Sources/TagScanner/Info.plist;
+				INFOPLIST_FILE = Sources/FreeTime/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.freetime.app;
 				SDKROOT = iphoneos;
@@ -249,9 +249,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Sources/TagScanner/TagScanner.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Sources/FreeTime/FreeTime.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				INFOPLIST_FILE = Sources/TagScanner/Info.plist;
+				INFOPLIST_FILE = Sources/FreeTime/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.freetime.app;
 				SDKROOT = iphoneos;

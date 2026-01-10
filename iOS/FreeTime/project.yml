@@ -20,19 +20,19 @@ targets:
     type: application
     platform: iOS
     sources:
-      - path: Sources/TagScanner
+      - path: Sources/FreeTime
         excludes:
           - "**/.DS_Store"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.freetime.app
-        INFOPLIST_FILE: Sources/TagScanner/Info.plist
+        INFOPLIST_FILE: Sources/FreeTime/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: "NO"
     info:
-      path: Sources/TagScanner/Info.plist
+      path: Sources/FreeTime/Info.plist
       properties:
         CFBundleDisplayName: Free Time
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
@@ -57,7 +57,7 @@ targets:
         WORKOS_CLIENT_ID: "$(WORKOS_CLIENT_ID)"
         WORKOS_REDIRECT_URI: "freetime://callback"
     entitlements:
-      path: Sources/TagScanner/TagScanner.entitlements
+      path: Sources/FreeTime/FreeTime.entitlements
 
 schemes:
   FreeTime:

@@ -61,7 +61,7 @@ freeTime/
 │       ├── refinement.ts     # Price synthesis
 │       └── orchestrator.ts   # Pipeline coordination
 ├── iOS/                       # iOS app (Swift/SwiftUI)
-│   └── TagScanner/
+│   └── FreeTime/
 ├── web-test/                  # Backend test UI
 └── testImages/               # Sample images for testing
 ```

@@ -28,7 +28,7 @@ freeTime/
 │       ├── logging.ts        # Audit logging
 │       └── types.ts          # Shared types
 ├── iOS/                       # iOS application
-│   └── TagScanner/
+│   └── FreeTime/
 ├── web-test/                  # Backend test page
 └── package.json
 ```
