@@ -1,0 +1,6 @@
+// Development configuration - DO NOT COMMIT actual values
+// Copy this to Development.local.xcconfig and fill in your values
+
+WORKOS_CLIENT_ID = your_client_id_here
+CONVEX_URL = https://qualified-sheep-863.convex.cloud
+
