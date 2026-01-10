@@ -56,9 +56,6 @@ targets:
         CONVEX_URL: "https://qualified-sheep-863.convex.cloud"
     entitlements:
       path: Sources/TagScanner/TagScanner.entitlements
-      properties:
-        com.apple.developer.applesignin:
-          - Default
 
 schemes:
   TagScanner:

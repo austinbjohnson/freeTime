@@ -1,2 +1,24 @@
-
+# Environment
 .env.local
+.env
+
+# Node
+node_modules/
+
+# macOS
+.DS_Store
+*.swp
+
+# iOS / Xcode
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+.swiftpm/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Convex
+.convex/
