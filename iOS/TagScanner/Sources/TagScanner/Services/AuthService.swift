@@ -20,15 +20,15 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
     
     // MARK: - Storage
     
-    private let tokenKey = "com.tagscanner.auth.token"
-    private let userKey = "com.tagscanner.auth.user"
+    private let tokenKey = "com.freetime.auth.token"
+    private let userKey = "com.freetime.auth.user"
     
     // MARK: - Initialization
     
     override init() {
         // Load from Info.plist or environment
         self.clientId = Bundle.main.infoDictionary?["WORKOS_CLIENT_ID"] as? String ?? ""
-        self.redirectUri = Bundle.main.infoDictionary?["WORKOS_REDIRECT_URI"] as? String ?? "tagscanner://callback"
+        self.redirectUri = Bundle.main.infoDictionary?["WORKOS_REDIRECT_URI"] as? String ?? "freetime://callback"
         
         super.init()
         
@@ -114,7 +114,7 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
         try await withCheckedThrowingContinuation { [weak self] continuation in
             let session = ASWebAuthenticationSession(
                 url: url,
-                callbackURLScheme: "tagscanner"
+                callbackURLScheme: "freetime"
             ) { callbackURL, error in
                 if let error = error {
                     continuation.resume(throwing: error)

@@ -41,7 +41,7 @@ struct LoginView: View {
                     .shadow(color: Color(hex: "6366f1").opacity(0.4), radius: 20, y: 10)
                     
                     // Title
-                    Text("Tag Scanner")
+                    Text("Free Time")
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                     

@@ -1,4 +1,4 @@
-# Tag Scanner iOS App
+# Free Time iOS App
 
 A native iOS app for scanning clothing tags and getting resale pricing insights.
 

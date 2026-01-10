@@ -1,8 +1,8 @@
-# Tag Scanner - Project Guidelines
+# Free Time - Project Guidelines
 
 ## Overview
 
-Tag Scanner is a clothing tag analysis application that helps users determine resale values by scanning clothing tags.
+Free Time is a clothing analysis application that helps users determine resale values by scanning clothing tags and garments.
 
 ## Tech Stack
 

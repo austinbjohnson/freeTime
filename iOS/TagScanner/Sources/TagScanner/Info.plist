@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Tag Scanner</string>
+	<string>Free Time</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -25,7 +25,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>tagscanner</string>
+				<string>freetime</string>
 			</array>
 		</dict>
 	</array>
@@ -34,9 +34,9 @@
 	<key>CONVEX_URL</key>
 	<string>https://qualified-sheep-863.convex.cloud</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Tag Scanner needs camera access to photograph clothing tags for analysis.</string>
+	<string>Free Time needs camera access to photograph clothing tags for analysis.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Tag Scanner needs photo library access to select existing photos of clothing tags.</string>
+	<string>Free Time needs photo library access to select existing photos of clothing tags.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
@@ -58,6 +58,6 @@
 	<key>WORKOS_CLIENT_ID</key>
 	<string>$(WORKOS_CLIENT_ID)</string>
 	<key>WORKOS_REDIRECT_URI</key>
-	<string>tagscanner://callback</string>
+	<string>freetime://callback</string>
 </dict>
 </plist>

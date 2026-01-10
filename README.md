@@ -1,6 +1,6 @@
-# Tag Scanner
+# Free Time
 
-A clothing tag analysis app that helps resellers determine item values by scanning tags and garments.
+A clothing analysis app that helps resellers determine item values by scanning tags and garments.
 
 ## What It Does
 
