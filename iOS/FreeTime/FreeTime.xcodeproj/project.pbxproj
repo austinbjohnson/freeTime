@@ -22,6 +22,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		12668D4F30CF0AE9336D09A3 /* Development.local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.local.xcconfig; sourceTree = "<group>"; };
 		2EDBE211BAF7B5E4566FC7E9 /* FreeTime.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FreeTime.entitlements; sourceTree = "<group>"; };
 		397872C61E4D084B9B91C503 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		4404FD99B4D6E383A2063FDD /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
@@ -60,9 +61,18 @@
 		2F32282CC4C5E9E2A5E4F48F = {
 			isa = PBXGroup;
 			children = (
+				39DBB071B23FDC89B8CA067B /* Config */,
 				D0DE567D1EBB405540891247 /* FreeTime */,
 				DD367ECF253F9F4B27A066AA /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		39DBB071B23FDC89B8CA067B /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				12668D4F30CF0AE9336D09A3 /* Development.local.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		64A02E3AADCC09DF1B18B65F /* App */ = {
@@ -262,6 +272,7 @@
 		};
 		8BA8E17C77B6F1E3C70CDBD5 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 12668D4F30CF0AE9336D09A3 /* Development.local.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -314,7 +325,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = Sources/TagScanner/Info.plist;
+				INFOPLIST_FILE = Sources/FreeTime/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -330,6 +341,7 @@
 		};
 		C096682D3792B4EEC011F823 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 12668D4F30CF0AE9336D09A3 /* Development.local.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -376,7 +388,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_FILE = Sources/TagScanner/Info.plist;
+				INFOPLIST_FILE = Sources/FreeTime/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;

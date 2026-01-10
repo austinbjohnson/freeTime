@@ -19,6 +19,7 @@ build/
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.local.xcconfig
 
 # Convex
 .convex/

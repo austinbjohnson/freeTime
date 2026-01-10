@@ -1,6 +1,7 @@
 import Foundation
 import AuthenticationServices
 import UIKit
+import CryptoKit
 
 /// Service for handling WorkOS authentication
 @MainActor
@@ -17,6 +18,10 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
     @Published var isLoading = false
     @Published var workosUser: WorkOSUser?
     @Published var error: AuthError?
+    
+    // MARK: - PKCE
+    
+    private var codeVerifier: String?
     
     // MARK: - Storage
     
@@ -46,6 +51,20 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
             .first { $0.isKeyWindow } ?? ASPresentationAnchor()
     }
     
+    // MARK: - PKCE Helpers
+    
+    private func generateCodeVerifier() -> String {
+        var bytes = [UInt8](repeating: 0, count: 32)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return Data(bytes).base64URLEncodedString()
+    }
+    
+    private func generateCodeChallenge(from verifier: String) -> String {
+        let data = Data(verifier.utf8)
+        let hash = SHA256.hash(data: data)
+        return Data(hash).base64URLEncodedString()
+    }
+    
     // MARK: - Authentication Flow
     
     /// Start the login flow
@@ -53,13 +72,20 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
         isLoading = true
         error = nil
         
-        // Build WorkOS authorization URL
-        var components = URLComponents(string: "https://api.workos.com/sso/authorize")!
+        // Generate PKCE code verifier and challenge
+        let verifier = generateCodeVerifier()
+        self.codeVerifier = verifier
+        let challenge = generateCodeChallenge(from: verifier)
+        
+        // Build WorkOS User Management authorization URL
+        var components = URLComponents(string: "https://api.workos.com/user_management/authorize")!
         components.queryItems = [
             URLQueryItem(name: "client_id", value: clientId),
             URLQueryItem(name: "redirect_uri", value: redirectUri),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "provider", value: "authkit"),
+            URLQueryItem(name: "code_challenge", value: challenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
         ]
         
         guard let authURL = components.url else {
@@ -68,10 +94,20 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
             return
         }
         
+        print("[Auth] Starting OAuth flow with URL: \(authURL)")
+        
         // Use ASWebAuthenticationSession for OAuth
         do {
             let callbackURL = try await authenticate(with: authURL)
+            print("[Auth] Received callback: \(callbackURL)")
             try await handleCallback(url: callbackURL)
+        } catch let authError as ASWebAuthenticationSessionError {
+            if authError.code == .canceledLogin {
+                self.error = .cancelled
+            } else {
+                self.error = .authenticationFailed(authError.localizedDescription)
+            }
+            isLoading = false
         } catch {
             self.error = .authenticationFailed(error.localizedDescription)
             isLoading = false
@@ -85,19 +121,23 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
             throw AuthError.invalidCallback
         }
         
-        // Exchange code for token
+        print("[Auth] Exchanging code for token...")
+        
+        // Exchange code for token (with PKCE verifier)
         let tokenResponse = try await exchangeCodeForToken(code: code)
         
         // Store the token
         storeToken(tokenResponse.accessToken)
         
-        // Fetch user info
-        let user = try await fetchUserInfo(accessToken: tokenResponse.accessToken)
-        self.workosUser = user
-        storeUser(user)
+        // The user info is included in the token response for User Management API
+        if let user = tokenResponse.user {
+            self.workosUser = user
+            storeUser(user)
+        }
         
         isAuthenticated = true
         isLoading = false
+        print("[Auth] Authentication successful!")
     }
     
     /// Sign out
@@ -132,42 +172,36 @@ class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationCo
     }
     
     private func exchangeCodeForToken(code: String) async throws -> TokenResponse {
-        var request = URLRequest(url: URL(string: "https://api.workos.com/sso/token")!)
+        guard let verifier = codeVerifier else {
+            throw AuthError.invalidConfiguration
+        }
+        
+        var request = URLRequest(url: URL(string: "https://api.workos.com/user_management/authenticate")!)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let body = [
-            "grant_type=authorization_code",
-            "client_id=\(clientId)",
-            "code=\(code)",
-            "redirect_uri=\(redirectUri)"
-        ].joined(separator: "&")
+        let body: [String: Any] = [
+            "grant_type": "authorization_code",
+            "client_id": clientId,
+            "code": code,
+            "code_verifier": verifier
+        ]
         
-        request.httpBody = body.data(using: .utf8)
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AuthError.tokenExchangeFailed
+        }
+        
+        if httpResponse.statusCode != 200 {
+            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+            print("[Auth] Token exchange failed: \(httpResponse.statusCode) - \(errorBody)")
             throw AuthError.tokenExchangeFailed
         }
         
         return try JSONDecoder().decode(TokenResponse.self, from: data)
-    }
-    
-    private func fetchUserInfo(accessToken: String) async throws -> WorkOSUser {
-        var request = URLRequest(url: URL(string: "https://api.workos.com/sso/profile")!)
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse,
-              httpResponse.statusCode == 200 else {
-            throw AuthError.userInfoFailed
-        }
-        
-        let profileResponse = try JSONDecoder().decode(ProfileResponse.self, from: data)
-        return profileResponse.profile
     }
     
     private func loadStoredSession() {
@@ -214,18 +248,25 @@ struct WorkOSUser: Codable {
 
 private struct TokenResponse: Codable {
     let accessToken: String
-    let tokenType: String
-    let expiresIn: Int?
+    let refreshToken: String?
+    let user: WorkOSUser?
     
     enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
-        case tokenType = "token_type"
-        case expiresIn = "expires_in"
+        case refreshToken = "refresh_token"
+        case user
     }
 }
 
-private struct ProfileResponse: Codable {
-    let profile: WorkOSUser
+// MARK: - Data Extension for PKCE
+
+extension Data {
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
 }
 
 // MARK: - Errors
