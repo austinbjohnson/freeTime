@@ -177,6 +177,93 @@ export const generateUploadUrl = mutation({
 });
 
 // ============================================
+// Multi-image support (scanImages table)
+// ============================================
+
+// Add an image to a scan
+export const addScanImage = mutation({
+  args: {
+    scanId: v.id("scans"),
+    imageStorageId: v.id("_storage"),
+    thumbnailStorageId: v.optional(v.id("_storage")),
+    imageType: v.optional(v.union(
+      v.literal("tag"),
+      v.literal("garment"),
+      v.literal("condition"),
+      v.literal("detail"),
+      v.literal("unknown")
+    )),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("scanImages", {
+      scanId: args.scanId,
+      imageStorageId: args.imageStorageId,
+      thumbnailStorageId: args.thumbnailStorageId,
+      imageType: args.imageType || "unknown",
+      processed: false,
+    });
+  },
+});
+
+// Get all images for a scan
+export const getScanImages = query({
+  args: { scanId: v.id("scans") },
+  handler: async (ctx, args) => {
+    const images = await ctx.db
+      .query("scanImages")
+      .withIndex("by_scan", (q) => q.eq("scanId", args.scanId))
+      .collect();
+
+    // Attach URLs
+    return Promise.all(
+      images.map(async (img) => {
+        const imageUrl = await ctx.storage.getUrl(img.imageStorageId);
+        const thumbnailUrl = img.thumbnailStorageId
+          ? await ctx.storage.getUrl(img.thumbnailStorageId)
+          : null;
+        return { ...img, imageUrl, thumbnailUrl };
+      })
+    );
+  },
+});
+
+// Update scan image analysis result (internal)
+export const updateScanImageAnalysis = internalMutation({
+  args: {
+    scanImageId: v.id("scanImages"),
+    imageType: v.union(
+      v.literal("tag"),
+      v.literal("garment"),
+      v.literal("condition"),
+      v.literal("detail"),
+      v.literal("unknown")
+    ),
+    analysisResult: v.any(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.scanImageId, {
+      imageType: args.imageType,
+      analysisResult: args.analysisResult,
+      processed: true,
+    });
+  },
+});
+
+// Mark scan image as failed
+export const markScanImageFailed = internalMutation({
+  args: {
+    scanImageId: v.id("scanImages"),
+    errorMessage: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.scanImageId, {
+      processed: true,
+      errorMessage: args.errorMessage,
+    });
+  },
+});
+
+// ============================================
 // Internal mutations (called by actions)
 // ============================================
 

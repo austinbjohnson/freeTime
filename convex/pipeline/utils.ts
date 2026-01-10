@@ -1,9 +1,64 @@
 "use node";
 
+import { Jimp } from "jimp";
+
 /**
  * Pipeline Utilities
  * Shared helper functions for pipeline stages
  */
+
+// Maximum base64 size for AI APIs (Anthropic limit is 5MB, we target 4MB for safety)
+const MAX_BASE64_SIZE = 4 * 1024 * 1024; // 4MB
+const TARGET_WIDTH = 1920; // Max width for processing
+const JPEG_QUALITY = 85;
+
+/**
+ * Compress and resize image if needed for AI API limits
+ * Returns base64 string optimized for API calls
+ */
+export async function optimizeImageForAI(imageBuffer: Buffer): Promise<string> {
+  let base64 = imageBuffer.toString("base64");
+  
+  // If already small enough, return as-is
+  if (base64.length <= MAX_BASE64_SIZE) {
+    console.log(`[Image] Size OK: ${(base64.length / 1024 / 1024).toFixed(2)}MB`);
+    return base64;
+  }
+  
+  console.log(`[Image] Too large (${(base64.length / 1024 / 1024).toFixed(2)}MB), optimizing...`);
+  
+  // Load image with Jimp
+  let image = await Jimp.read(imageBuffer);
+  const currentWidth = image.width;
+  
+  // Resize if wider than target
+  if (currentWidth > TARGET_WIDTH) {
+    image = image.resize({ w: TARGET_WIDTH });
+  }
+  
+  // Convert to JPEG with compression
+  let outputBuffer = await image.getBuffer("image/jpeg", { quality: JPEG_QUALITY });
+  base64 = outputBuffer.toString("base64");
+  
+  // If still too large, compress more aggressively
+  if (base64.length > MAX_BASE64_SIZE) {
+    console.log(`[Image] Still large (${(base64.length / 1024 / 1024).toFixed(2)}MB), compressing more...`);
+    image = image.resize({ w: Math.min(image.width, 1280) });
+    outputBuffer = await image.getBuffer("image/jpeg", { quality: 70 });
+    base64 = outputBuffer.toString("base64");
+  }
+  
+  // Final attempt with very aggressive compression
+  if (base64.length > MAX_BASE64_SIZE) {
+    console.log(`[Image] Still large, final compression...`);
+    image = image.resize({ w: Math.min(image.width, 1024) });
+    outputBuffer = await image.getBuffer("image/jpeg", { quality: 60 });
+    base64 = outputBuffer.toString("base64");
+  }
+  
+  console.log(`[Image] Optimized to ${(base64.length / 1024 / 1024).toFixed(2)}MB`);
+  return base64;
+}
 
 export interface RetryOptions {
   maxRetries: number;

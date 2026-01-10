@@ -20,7 +20,12 @@ import { withRetry, formatUserError } from "./utils";
 function buildSearchQueries(data: ExtractedData): string[] {
   const queries: string[] = [];
 
-  // Primary query: brand + style number
+  // PRIORITY 1: Use AI-generated search suggestions if available
+  if (data.searchSuggestions && data.searchSuggestions.length > 0) {
+    queries.push(...data.searchSuggestions.slice(0, 3));
+  }
+
+  // PRIORITY 2: Tag data - brand + style number
   if (data.brand && data.styleNumber) {
     queries.push(`"${data.brand}" "${data.styleNumber}"`);
     queries.push(`"${data.brand}" "${data.styleNumber}" resale`);
@@ -31,9 +36,30 @@ function buildSearchQueries(data: ExtractedData): string[] {
     queries.push(`"${data.brand}" "${data.sku}"`);
   }
 
+  // PRIORITY 3: Garment analysis data (when no tag)
+  const garment = data.garmentAnalysis;
+  if (garment) {
+    // Style-based query
+    if (garment.style && garment.category) {
+      queries.push(`${garment.style} ${garment.category} vintage`);
+    }
+    // Origin-based query (e.g., "Cowichan sweater Canada")
+    if (garment.estimatedOrigin && garment.category) {
+      queries.push(`${garment.estimatedOrigin} ${garment.category}`);
+    }
+    // Pattern-based query
+    if (garment.patterns?.length && garment.category) {
+      queries.push(`${garment.patterns[0]} ${garment.category} vintage`);
+    }
+    // Estimated brand
+    if (garment.estimatedBrand) {
+      queries.push(`"${garment.estimatedBrand}" ${garment.category || "clothing"}`);
+    }
+  }
+
   // Brand + materials (for unique items)
   if (data.brand && data.materials?.length) {
-    const material = data.materials[0].split(" ")[0]; // First word of first material
+    const material = data.materials[0].split(" ")[0];
     queries.push(`"${data.brand}" ${material} clothing`);
   }
 
@@ -47,7 +73,9 @@ function buildSearchQueries(data: ExtractedData): string[] {
     queries.push(`RN ${data.rnNumber} manufacturer`);
   }
 
-  return queries.slice(0, 5); // Limit to 5 queries
+  // Dedupe and limit
+  const uniqueQueries = [...new Set(queries)];
+  return uniqueQueries.slice(0, 5);
 }
 
 // Search using SerpAPI with retry

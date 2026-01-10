@@ -15,6 +15,7 @@ export const logPipelineRun = internalMutation({
     durationMs: v.number(),
     success: v.boolean(),
     errorMessage: v.optional(v.string()),
+    details: v.optional(v.any()), // Additional metadata for debugging
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("pipelineRuns", args);
