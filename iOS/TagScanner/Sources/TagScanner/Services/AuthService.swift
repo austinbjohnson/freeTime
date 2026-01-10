@@ -1,9 +1,10 @@
 import Foundation
 import AuthenticationServices
+import UIKit
 
 /// Service for handling WorkOS authentication
 @MainActor
-class AuthService: ObservableObject {
+class AuthService: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
     
     // MARK: - Configuration
     
@@ -24,13 +25,25 @@ class AuthService: ObservableObject {
     
     // MARK: - Initialization
     
-    init() {
+    override init() {
         // Load from Info.plist or environment
         self.clientId = Bundle.main.infoDictionary?["WORKOS_CLIENT_ID"] as? String ?? ""
         self.redirectUri = Bundle.main.infoDictionary?["WORKOS_REDIRECT_URI"] as? String ?? "tagscanner://callback"
         
+        super.init()
+        
         // Check for existing session
         loadStoredSession()
+    }
+    
+    // MARK: - ASWebAuthenticationPresentationContextProviding
+    
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        // Return the key window for presentation
+        return UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
     }
     
     // MARK: - Authentication Flow
@@ -98,7 +111,7 @@ class AuthService: ObservableObject {
     // MARK: - Private Methods
     
     private func authenticate(with url: URL) async throws -> URL {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { [weak self] continuation in
             let session = ASWebAuthenticationSession(
                 url: url,
                 callbackURLScheme: "tagscanner"
@@ -112,6 +125,7 @@ class AuthService: ObservableObject {
                 }
             }
             
+            session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
             session.start()
         }
