@@ -1,5 +1,7 @@
 # Free Time - Project Guidelines
 
+> ⚠️ **ALWAYS use feature branches** - Never push directly to main. See [Git Workflow](#git-workflow).
+
 ## Overview
 
 Free Time is a clothing analysis application that helps users determine resale values by scanning clothing tags and garments.
@@ -171,10 +173,46 @@ npm run test:web
 
 ### iOS
 
-Open `iOS/TagScanner` in Xcode and configure:
+Open `iOS/FreeTime/FreeTime.xcodeproj` in Xcode and configure:
 - Bundle ID
 - Development team
 - WorkOS Client ID in scheme environment variables
+
+**After modifying `project.yml`:**
+```bash
+cd iOS/FreeTime && xcodegen generate
+```
+
+## iOS Development
+
+### ASWebAuthenticationSession
+If you get "error 2" from `ASWebAuthenticationSession`, it needs a presentation context:
+
+```swift
+class AuthService: NSObject, ASWebAuthenticationPresentationContextProviding {
+    nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow } ?? ASPresentationAnchor()
+    }
+}
+// Then set: session.presentationContextProvider = self
+```
+
+### App Renaming Checklist
+When renaming the iOS app, update ALL of these:
+- [ ] `project.yml`: name, bundleIdPrefix, target name, scheme name
+- [ ] `project.yml`: CFBundleDisplayName, bundle identifier
+- [ ] `project.yml`: URL schemes and redirect URIs
+- [ ] Directory names (`iOS/OldName` → `iOS/NewName`)
+- [ ] Source directory (`Sources/OldName` → `Sources/NewName`)
+- [ ] Entitlements file name
+- [ ] App entry point struct name (`@main struct`)
+- [ ] Storage keys in services (UserDefaults keys)
+- [ ] WorkOS Dashboard redirect URIs
+- [ ] Documentation (README, CLAUDE.md)
+- [ ] Run `xcodegen generate` after all changes
 
 ## Environment Variables
 
