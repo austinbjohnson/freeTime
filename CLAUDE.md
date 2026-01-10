@@ -59,11 +59,73 @@ gh issue close <number>
 ## Pipeline Architecture
 
 ```
-Image → Extraction → Research → Refinement → Results
-         (AI)       (SerpAPI)     (AI)
+Image(s) → Extraction → Research → Refinement → Results
+             (AI)       (SerpAPI)     (AI)
 ```
 
 Each stage is isolated and can be swapped independently.
+
+### Stage Details
+
+1. **Extraction** (`pipeline/extraction.ts`)
+   - Auto-detects image type: `tag | garment | condition | detail`
+   - Tag images → brand, SKU, RN number, materials
+   - Garment images → style, era, patterns, construction
+   - Condition images → grade, issues, wear level
+   - Generates AI search suggestions for research stage
+
+2. **Research** (`pipeline/research.ts`)
+   - Uses SerpAPI for web search
+   - Prioritizes AI-generated search suggestions
+   - Falls back to programmatic queries from extracted data
+   - Targets resale platforms (eBay, Poshmark, Mercari, etc.)
+
+3. **Refinement** (`pipeline/refinement.ts`)
+   - Synthesizes research into pricing recommendations
+   - Provides market activity assessment
+   - Falls back to statistical analysis if AI fails
+
+## Convex Constraints
+
+### "use node" Files
+- Files with `"use node"` can only export **actions**, not mutations or queries
+- If you need a mutation called from an action, define it in a separate file and use `ctx.runMutation(internal.file.mutation, args)`
+
+### Internal vs Public APIs
+- Use `internal` for functions called only by other backend code
+- Use `api` for functions callable from clients
+- Actions calling other actions: use `internal.pipeline.extraction.analyzeImage`
+
+## Image Processing
+
+### Size Limits
+- **Anthropic Claude**: 5MB base64 limit for images
+- Images are auto-compressed using Jimp if > 4MB
+
+### Why Jimp, Not Sharp
+Sharp has native binaries that don't work in Convex's serverless environment. Jimp is pure JavaScript and works everywhere.
+
+### Compression Strategy
+1. Check if image > 4MB
+2. Reduce JPEG quality (90 → 10) iteratively
+3. If still too large, resize dimensions by 10% steps
+4. Target: under 4MB for safe base64 encoding
+
+## AI Providers
+
+### Configuration
+Set in Convex environment variables:
+```bash
+npx convex env set ANTHROPIC_API_KEY=sk-ant-...
+npx convex env set OPENAI_API_KEY=sk-...
+npx convex env set SERPAPI_API_KEY=...
+```
+
+### Fallback Strategy
+1. Try primary provider (default: Anthropic)
+2. On failure, try fallback provider (OpenAI)
+3. For refinement: if both AI providers fail, use statistical analysis
+4. All attempts logged to `pipelineRuns` table for debugging
 
 ## Development
 
