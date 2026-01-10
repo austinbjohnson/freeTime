@@ -392,9 +392,30 @@ export const extractData = action({
       provider: args.provider,
     });
 
+    // Get the extracted/estimated brand
+    let brand = result.tagExtraction?.brand || result.garmentAnalysis?.estimatedBrand;
+    let brandTier: string | undefined;
+    let brandResolved = false;
+
+    // Resolve brand against our database
+    if (brand) {
+      const brandInfo = await ctx.runQuery(internal.brands.resolveBrand, {
+        brandName: brand,
+      });
+      
+      if (brandInfo.found) {
+        brand = brandInfo.canonical; // Use canonical name
+        brandTier = brandInfo.tier;
+        brandResolved = true;
+        console.log(`[Extraction] Brand resolved: "${result.tagExtraction?.brand || result.garmentAnalysis?.estimatedBrand}" → "${brand}" (${brandTier})`);
+      }
+    }
+
     // Convert ImageAnalysisResult to legacy ExtractedData format
     const extractedData = {
-      brand: result.tagExtraction?.brand || result.garmentAnalysis?.estimatedBrand,
+      brand,
+      brandTier,
+      brandResolved,
       styleNumber: result.tagExtraction?.styleNumber,
       sku: result.tagExtraction?.sku,
       size: result.tagExtraction?.size,

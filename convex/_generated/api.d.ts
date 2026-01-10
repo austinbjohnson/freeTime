@@ -8,6 +8,11 @@
  * @module
  */
 
+import type * as brandSeedData from "../brandSeedData.js";
+import type * as brandSeeder from "../brandSeeder.js";
+import type * as brands from "../brands.js";
+import type * as images from "../images.js";
+import type * as imagesMutations from "../imagesMutations.js";
 import type * as pipeline_extraction from "../pipeline/extraction.js";
 import type * as pipeline_logging from "../pipeline/logging.js";
 import type * as pipeline_orchestrator from "../pipeline/orchestrator.js";
@@ -25,6 +30,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  brandSeedData: typeof brandSeedData;
+  brandSeeder: typeof brandSeeder;
+  brands: typeof brands;
+  images: typeof images;
+  imagesMutations: typeof imagesMutations;
   "pipeline/extraction": typeof pipeline_extraction;
   "pipeline/logging": typeof pipeline_logging;
   "pipeline/orchestrator": typeof pipeline_orchestrator;
