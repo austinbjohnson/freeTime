@@ -160,20 +160,27 @@ struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     
     func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+        let view = PreviewView()
+        view.backgroundColor = .black
         
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = view.bounds
         view.layer.addSublayer(previewLayer)
         
+        // Store reference for updates
+        view.previewLayer = previewLayer
         context.coordinator.previewLayer = previewLayer
         
+        print("[Camera] Preview layer created")
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.previewLayer?.frame = uiView.bounds
+        // Update frame when view size changes
+        DispatchQueue.main.async {
+            context.coordinator.previewLayer?.frame = uiView.bounds
+            print("[Camera] Preview frame updated: \(uiView.bounds)")
+        }
     }
     
     func makeCoordinator() -> Coordinator {
@@ -182,6 +189,16 @@ struct CameraPreviewView: UIViewRepresentable {
     
     class Coordinator {
         var previewLayer: AVCaptureVideoPreviewLayer?
+    }
+}
+
+// Custom UIView that updates preview layer frame on layout
+class PreviewView: UIView {
+    var previewLayer: AVCaptureVideoPreviewLayer?
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        previewLayer?.frame = bounds
     }
 }
 
