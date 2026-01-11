@@ -13,8 +13,8 @@ struct ScanDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Image
-                    AsyncImage(url: URL(string: scan.imageUrl ?? "")) { image in
+                    // Image (cached for instant loads)
+                    CachedAsyncImage(url: URL(string: scan.imageUrl ?? "")) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fit)
