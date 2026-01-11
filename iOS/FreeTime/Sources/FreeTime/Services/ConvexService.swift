@@ -121,7 +121,7 @@ class ConvexService: ObservableObject {
         return scanId
     }
     
-    /// Start processing a scan through the pipeline
+    /// Start processing a scan through the pipeline (single image)
     func processScan(scanId: String, imageStorageId: String, onDeviceHints: [String]? = nil) async throws {
         var args: [String: Any] = [
             "scanId": scanId,
@@ -134,6 +134,21 @@ class ConvexService: ObservableObject {
         
         // This is an action, not a mutation
         _ = try await action("pipeline/orchestrator:processScan", args: args)
+    }
+    
+    /// Start processing a scan with multiple images
+    func processMultiImageScan(scanId: String, imageStorageIds: [String], onDeviceHints: [String]? = nil) async throws {
+        var args: [String: Any] = [
+            "scanId": scanId,
+            "imageStorageIds": imageStorageIds
+        ]
+        
+        if let hints = onDeviceHints {
+            args["onDeviceHints"] = hints
+        }
+        
+        // Uses the multi-image pipeline action
+        _ = try await action("pipeline/orchestrator:processMultiImageScan", args: args)
     }
     
     /// Fetch all scans for the current user
