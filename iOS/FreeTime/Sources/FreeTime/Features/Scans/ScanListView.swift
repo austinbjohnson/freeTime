@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ScanListView: View {
     @EnvironmentObject var convexService: ConvexService
+    @EnvironmentObject var navigationState: AppNavigationState
     @State private var selectedScan: Scan?
     @State private var scanToDelete: Scan?
     @State private var showDeleteConfirmation = false
@@ -45,6 +46,20 @@ struct ScanListView: View {
             }
             .sheet(item: $selectedScan) { scan in
                 ScanDetailView(scan: scan)
+            }
+            .onChange(of: navigationState.requestedScanId) { _, newId in
+                guard let newId else { return }
+                if let scan = convexService.scans.first(where: { $0.id == newId }) {
+                    selectedScan = scan
+                    navigationState.requestedScanId = nil
+                    return
+                }
+                Task {
+                    if let scan = try? await convexService.fetchScan(scanId: newId) {
+                        selectedScan = scan
+                        navigationState.requestedScanId = nil
+                    }
+                }
             }
             .alert("Delete Scan?", isPresented: $showDeleteConfirmation) {
                 Button("Cancel", role: .cancel) {
@@ -534,5 +549,5 @@ struct ProcessingProgressView: View {
 #Preview {
     ScanListView()
         .environmentObject(ConvexService())
+        .environmentObject(AppNavigationState())
 }
-
