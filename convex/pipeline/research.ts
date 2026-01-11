@@ -452,6 +452,52 @@ function filterByRelevance(
   };
 }
 
+// Check if a string is a valid search term (not a verbose description)
+function isValidSearchTerm(term: string | undefined): boolean {
+  if (!term) return false;
+  if (term.length > 50) return false;
+  
+  // Reject description phrases
+  const descriptionPhrases = [
+    "appears to be",
+    "based on",
+    "likely",
+    "possibly",
+    "contemporary",
+    "quality",
+    "construction",
+  ];
+  
+  const lowerTerm = term.toLowerCase();
+  for (const phrase of descriptionPhrases) {
+    if (lowerTerm.includes(phrase)) return false;
+  }
+  
+  return true;
+}
+
+// Sanitize a search query - truncate and clean
+function sanitizeQuery(query: string, maxLength: number = 60): string {
+  // Remove any verbose phrases that might have slipped through
+  let cleaned = query
+    .replace(/appears to be[^,]*/gi, "")
+    .replace(/based on[^,]*/gi, "")
+    .replace(/contemporary[^,]*/gi, "")
+    .trim();
+  
+  // Truncate if too long
+  if (cleaned.length > maxLength) {
+    cleaned = cleaned.slice(0, maxLength).trim();
+    // Don't cut in middle of a word
+    const lastSpace = cleaned.lastIndexOf(" ");
+    if (lastSpace > maxLength * 0.7) {
+      cleaned = cleaned.slice(0, lastSpace);
+    }
+  }
+  
+  return cleaned;
+}
+
 // Build search queries optimized for resale platforms
 function buildSearchQueries(data: ExtractedData, productCategory: string | null): {
   general: string[];
@@ -467,25 +513,33 @@ function buildSearchQueries(data: ExtractedData, productCategory: string | null)
   let coreSearchTerm = "";
   let ebayQuery = "";
   
-  if (data.brand) {
-    coreSearchTerm = data.brand;
+  // Only use brand if it's a valid brand name (not a description)
+  const validBrand = isValidSearchTerm(data.brand) ? data.brand : undefined;
+  
+  if (validBrand) {
+    coreSearchTerm = validBrand;
     
     if (data.styleNumber) {
       coreSearchTerm += ` ${data.styleNumber}`;
-      ebayQuery = `${data.brand} ${data.styleNumber}`;
+      ebayQuery = `${validBrand} ${data.styleNumber}`;
     } else if (productCategory) {
       coreSearchTerm += ` ${productCategory}`;
-      ebayQuery = `${data.brand} ${productCategory}`;
+      ebayQuery = `${validBrand} ${productCategory}`;
     } else if (data.garmentAnalysis?.category) {
       coreSearchTerm += ` ${data.garmentAnalysis.category}`;
-      ebayQuery = `${data.brand} ${data.garmentAnalysis.category}`;
+      ebayQuery = `${validBrand} ${data.garmentAnalysis.category}`;
     } else {
-      ebayQuery = data.brand;
+      ebayQuery = validBrand;
     }
   } else if (data.garmentAnalysis) {
+    // No valid brand - build query from garment analysis only
     const g = data.garmentAnalysis;
-    coreSearchTerm = [g.style, g.category, g.estimatedBrand].filter(Boolean).join(" ");
+    // Don't use estimatedBrand if it's a description
+    const estimatedBrand = isValidSearchTerm(g.estimatedBrand) ? g.estimatedBrand : undefined;
+    coreSearchTerm = [g.style, g.category, estimatedBrand].filter(Boolean).join(" ");
     ebayQuery = coreSearchTerm;
+    
+    console.log(`[Research] No valid brand - using garment analysis: "${coreSearchTerm}"`);
   }
 
   // Add category exclusions to eBay query
@@ -496,15 +550,21 @@ function buildSearchQueries(data: ExtractedData, productCategory: string | null)
     }
   }
 
-  // AI-generated search suggestions
+  // AI-generated search suggestions (filter out invalid ones)
   if (data.searchSuggestions?.length) {
-    general.push(...data.searchSuggestions.slice(0, 2));
+    const validSuggestions = data.searchSuggestions
+      .filter(s => isValidSearchTerm(s))
+      .map(s => sanitizeQuery(s))
+      .slice(0, 2);
+    general.push(...validSuggestions);
   }
 
-  // Platform-specific searches
+  // Platform-specific searches (sanitize queries)
   if (coreSearchTerm) {
+    const sanitizedCore = sanitizeQuery(coreSearchTerm);
+    
     platformSpecific.push({
-      query: `${coreSearchTerm} site:ebay.com`,
+      query: `${sanitizedCore} site:ebay.com`,
       platform: "eBay",
       site: "ebay.com",
     });
@@ -513,7 +573,7 @@ function buildSearchQueries(data: ExtractedData, productCategory: string | null)
       const platform = RESALE_PLATFORMS[platformKey as keyof typeof RESALE_PLATFORMS];
       if (platform && platformKey !== "ebay") {
         platformSpecific.push({
-          query: `${coreSearchTerm} site:${platform.domain}`,
+          query: `${sanitizedCore} site:${platform.domain}`,
           platform: platform.name,
           site: platform.domain,
         });

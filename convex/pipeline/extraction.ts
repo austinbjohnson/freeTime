@@ -35,7 +35,14 @@ STEP 1: Classify the image type:
 - "detail" = A specific feature like buttons, zipper, logo, stitching
 - "unknown" = Cannot determine what this image shows
 
-STEP 2: Based on the image type, extract relevant information.
+STEP 2: READ ALL VISIBLE TEXT - This is critical!
+- Look carefully for ANY brand logos, labels, or text visible in the image
+- Even in "garment" images, brands often appear on small labels, patches, or embroidered logos
+- Common label locations: front pocket, collar, hem, interior, straps, zippers
+- Read the EXACT text - don't describe it, transcribe it (e.g., "TOPO DESIGNS" not "appears to be outdoor brand")
+- If you see a logo but can't read the text clearly, note what you can see
+
+STEP 3: Based on the image type, extract relevant information.
 
 Return a JSON object in this EXACT format:
 {
@@ -55,15 +62,15 @@ Return a JSON object in this EXACT format:
   },
   
   "garmentAnalysis": {
-    "category": "sweater/jacket/pants/dress/shirt/coat/etc.",
-    "style": "Cowichan/varsity/bomber/cardigan/pullover/etc.",
+    "category": "sweater/jacket/pants/dress/shirt/coat/bag/backpack/etc.",
+    "style": "Cowichan/varsity/bomber/cardigan/pullover/tote/messenger/etc.",
     "estimatedEra": "vintage/1980s/modern/etc.",
     "colors": ["cream", "brown", "navy"],
     "patterns": ["geometric", "stripes", "floral", "solid"],
-    "construction": "hand-knit/machine-knit/woven/etc.",
-    "estimatedBrand": "Best guess if recognizable style",
+    "construction": "hand-knit/machine-knit/woven/canvas/nylon/etc.",
+    "estimatedBrand": "EXACT brand name if visible on any label/logo (e.g., 'Topo Designs', 'Patagonia'). Only use a description if NO brand text is visible.",
     "estimatedOrigin": "Geographic/cultural origin if identifiable",
-    "notableFeatures": ["whale motif", "shawl collar", "zipper front"]
+    "notableFeatures": ["whale motif", "shawl collar", "zipper front", "brand label on pocket"]
   },
   
   "conditionAssessment": {
@@ -229,6 +236,43 @@ async function analyzeWithAnthropic(
       tokenUsage,
     };
   }, { maxRetries: 2 });
+}
+
+// Check if a brand string looks like a valid brand name vs a verbose description
+function isValidBrandName(brand: string | undefined): boolean {
+  if (!brand) return false;
+  
+  // Too long to be a brand name (most brand names are <30 chars)
+  if (brand.length > 40) return false;
+  
+  // Contains description phrases - not a brand name
+  const descriptionPhrases = [
+    "appears to be",
+    "based on",
+    "likely",
+    "possibly",
+    "seems to be",
+    "could be",
+    "probably",
+    "unknown",
+    "unidentified",
+    "generic",
+    "contemporary",
+    "vintage style",
+    "quality",
+    "construction",
+  ];
+  
+  const lowerBrand = brand.toLowerCase();
+  for (const phrase of descriptionPhrases) {
+    if (lowerBrand.includes(phrase)) return false;
+  }
+  
+  // Contains too many words (brand names rarely have >4 words)
+  const wordCount = brand.trim().split(/\s+/).length;
+  if (wordCount > 5) return false;
+  
+  return true;
 }
 
 // Normalize and validate the analysis result
@@ -442,21 +486,35 @@ export const extractData = action({
     });
 
     // Get the extracted/estimated brand
-    let brand = result.tagExtraction?.brand || result.garmentAnalysis?.estimatedBrand;
+    let rawBrand = result.tagExtraction?.brand || result.garmentAnalysis?.estimatedBrand;
+    let brand: string | undefined;
     let brandTier: string | undefined;
     let brandResolved = false;
+    let brandNotes: string | undefined;
 
-    // Resolve brand against our database
-    if (brand) {
-      const brandInfo = await ctx.runQuery(internal.brands.resolveBrand, {
-        brandName: brand,
-      });
-      
-      if (brandInfo.found) {
-        brand = brandInfo.canonical; // Use canonical name
-        brandTier = brandInfo.tier;
-        brandResolved = true;
-        console.log(`[Extraction] Brand resolved: "${result.tagExtraction?.brand || result.garmentAnalysis?.estimatedBrand}" → "${brand}" (${brandTier})`);
+    // Validate brand - reject verbose descriptions
+    if (rawBrand) {
+      if (isValidBrandName(rawBrand)) {
+        brand = rawBrand;
+        
+        // Resolve brand against our database
+        const brandInfo = await ctx.runQuery(internal.brands.resolveBrand, {
+          brandName: brand,
+        });
+        
+        if (brandInfo.found) {
+          brand = brandInfo.canonical; // Use canonical name
+          brandTier = brandInfo.tier;
+          brandResolved = true;
+          console.log(`[Extraction] Brand resolved: "${rawBrand}" → "${brand}" (${brandTier})`);
+        } else {
+          console.log(`[Extraction] Brand not in database: "${brand}"`);
+        }
+      } else {
+        // Brand field contains a description, not a brand name
+        console.log(`[Extraction] Invalid brand (description detected): "${rawBrand.slice(0, 50)}..."`);
+        brandNotes = rawBrand; // Save for reference
+        brand = undefined;
       }
     }
 
@@ -465,6 +523,7 @@ export const extractData = action({
       brand,
       brandTier,
       brandResolved,
+      brandNotes, // Stores description if brand field contained invalid verbose text
       styleNumber: result.tagExtraction?.styleNumber,
       sku: result.tagExtraction?.sku,
       size: result.tagExtraction?.size,
