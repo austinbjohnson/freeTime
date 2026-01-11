@@ -73,6 +73,7 @@ export const getScansByStatus = query({
     status: v.union(
       v.literal("uploaded"),
       v.literal("extracting"),
+      v.literal("awaiting_clarification"),
       v.literal("researching"),
       v.literal("refining"),
       v.literal("completed"),
@@ -94,6 +95,7 @@ export const updateScanStatus = mutation({
     status: v.union(
       v.literal("uploaded"),
       v.literal("extracting"),
+      v.literal("awaiting_clarification"),
       v.literal("researching"),
       v.literal("refining"),
       v.literal("completed"),
@@ -312,6 +314,7 @@ export const updateStatusInternal = internalMutation({
     status: v.union(
       v.literal("uploaded"),
       v.literal("extracting"),
+      v.literal("awaiting_clarification"),
       v.literal("researching"),
       v.literal("refining"),
       v.literal("completed"),
@@ -323,6 +326,114 @@ export const updateStatusInternal = internalMutation({
     await ctx.db.patch(args.scanId, {
       status: args.status,
       ...(args.errorMessage && { errorMessage: args.errorMessage }),
+    });
+  },
+});
+
+// ============================================
+// Clarification support
+// ============================================
+
+// Get clarification request for a scan (if any)
+export const getClarification = query({
+  args: { scanId: v.id("scans") },
+  handler: async (ctx, args) => {
+    const scan = await ctx.db.get(args.scanId);
+    if (!scan) return null;
+    
+    // Check if scan is awaiting clarification and has extracted data
+    if (scan.status !== "awaiting_clarification") return null;
+    
+    const extractedData = scan.extractedData as { clarificationNeeded?: unknown } | undefined;
+    if (!extractedData?.clarificationNeeded) return null;
+    
+    return {
+      scanId: args.scanId,
+      clarification: extractedData.clarificationNeeded,
+    };
+  },
+});
+
+// Apply clarification answer and update extracted data
+export const applyClarification = mutation({
+  args: {
+    scanId: v.id("scans"),
+    field: v.string(),
+    value: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const scan = await ctx.db.get(args.scanId);
+    if (!scan) throw new Error("Scan not found");
+    if (scan.status !== "awaiting_clarification") {
+      throw new Error("Scan is not awaiting clarification");
+    }
+    
+    // Get current extracted data
+    const extractedData = (scan.extractedData || {}) as Record<string, unknown>;
+    
+    // Apply the clarification based on field
+    // Skip means don't update, just proceed
+    if (args.value !== "skip") {
+      // Update the appropriate field based on what was clarified
+      switch (args.field) {
+        case "category":
+          if (!extractedData.garmentAnalysis) {
+            extractedData.garmentAnalysis = {};
+          }
+          (extractedData.garmentAnalysis as Record<string, unknown>).category = args.value;
+          break;
+        case "gender":
+          if (!extractedData.garmentAnalysis) {
+            extractedData.garmentAnalysis = {};
+          }
+          (extractedData.garmentAnalysis as Record<string, unknown>).gender = args.value;
+          break;
+        case "era":
+        case "estimatedEra":
+          if (!extractedData.garmentAnalysis) {
+            extractedData.garmentAnalysis = {};
+          }
+          (extractedData.garmentAnalysis as Record<string, unknown>).estimatedEra = args.value;
+          break;
+        case "brand":
+          extractedData.brand = args.value;
+          break;
+        case "condition":
+        case "overallGrade":
+          if (!extractedData.conditionAssessment) {
+            extractedData.conditionAssessment = {};
+          }
+          (extractedData.conditionAssessment as Record<string, unknown>).overallGrade = args.value;
+          break;
+        default:
+          // Generic field update
+          extractedData[args.field] = args.value;
+      }
+    }
+    
+    // Remove the clarification request since it's been answered
+    delete extractedData.clarificationNeeded;
+    
+    // Update the scan - move to researching status
+    await ctx.db.patch(args.scanId, {
+      extractedData,
+      status: "researching",
+    });
+    
+    return { success: true, field: args.field, value: args.value };
+  },
+});
+
+// Internal mutation to set scan to awaiting clarification
+export const setAwaitingClarificationInternal = internalMutation({
+  args: {
+    scanId: v.id("scans"),
+    extractedData: v.any(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.scanId, {
+      extractedData: args.extractedData,
+      status: "awaiting_clarification",
     });
   },
 });

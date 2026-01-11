@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00074F68F778AF07545174D3 /* FreeTimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6197526E5D4553FA4A734E /* FreeTimeApp.swift */; };
 		018C790C58BDDB88C19F3803 /* ConvexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C910863456D9CBC2C4CF6E6E /* ConvexService.swift */; };
+		2C7983986A7988D20CF4AF9A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */; };
 		4094B7C0077165F358DDD67B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */; };
 		576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4404FD99B4D6E383A2063FDD /* MainTabView.swift */; };
 		5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E401DC467440318E6A2B87 /* AuthService.swift */; };
@@ -22,10 +23,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		04971C999EC5845CDB9C2627 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		12668D4F30CF0AE9336D09A3 /* Development.local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.local.xcconfig; sourceTree = "<group>"; };
 		2EDBE211BAF7B5E4566FC7E9 /* FreeTime.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FreeTime.entitlements; sourceTree = "<group>"; };
 		397872C61E4D084B9B91C503 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		4404FD99B4D6E383A2063FDD /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		4A95E9871B8DA4D35925E8B8 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		9163F1C7563F75C94CC6F886 /* FreeTime.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FreeTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6E401DC467440318E6A2B87 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
@@ -71,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				12668D4F30CF0AE9336D09A3 /* Development.local.xcconfig */,
+				04971C999EC5845CDB9C2627 /* Release.xcconfig */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -119,6 +123,7 @@
 				A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */,
 				2EDBE211BAF7B5E4566FC7E9 /* FreeTime.entitlements */,
 				DC98318972295F8445DAE5E4 /* Info.plist */,
+				46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */,
 				64A02E3AADCC09DF1B18B65F /* App */,
 				9C0BB72F1724557C5626762F /* Features */,
 				966934C3C1E224046FEB4611 /* Models */,
@@ -211,6 +216,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4094B7C0077165F358DDD67B /* Assets.xcassets in Resources */,
+				2C7983986A7988D20CF4AF9A /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -347,7 +353,7 @@
 		};
 		C096682D3792B4EEC011F823 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 12668D4F30CF0AE9336D09A3 /* Development.local.xcconfig */;
+			baseConfigurationReference = 04971C999EC5845CDB9C2627 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -382,7 +388,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -401,8 +406,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
 			};
 			name = Release;

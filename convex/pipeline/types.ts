@@ -56,6 +56,7 @@ export interface ImageAnalysisResult {
   conditionAssessment?: ConditionAssessment;
   confidence: number; // 0-1 confidence score
   searchSuggestions?: string[]; // Suggested search queries based on this image
+  clarificationNeeded?: ClarificationRequest; // When AI needs user input
 }
 
 // Merged extraction from all images in a scan
@@ -82,6 +83,24 @@ export interface ExtractedData {
   confidence: number;
   imageTypes: ImageType[]; // What types of images were analyzed
   searchSuggestions: string[]; // Combined search suggestions
+  
+  // Clarification (when AI needs user input)
+  clarificationNeeded?: ClarificationRequest;
+}
+
+// ============================================
+// Clarification Request (when AI needs user input)
+// ============================================
+export interface ClarificationOption {
+  value: string;       // Machine value to store
+  label: string;       // Display label for user
+}
+
+export interface ClarificationRequest {
+  field: string;                    // What field we're clarifying ("category", "gender", etc.)
+  question: string;                 // Human-readable question
+  options: ClarificationOption[];   // 3-5 choices
+  reason: string;                   // Why we're asking (for logging)
 }
 
 // ============================================
@@ -234,6 +253,14 @@ export function mergeImageAnalyses(analyses: ImageAnalysisResult[]): ExtractedDa
   // Use garment analysis brand if no tag brand
   if (!merged.brand && merged.garmentAnalysis?.estimatedBrand) {
     merged.brand = merged.garmentAnalysis.estimatedBrand;
+  }
+
+  // Keep only the first clarification request (one per scan)
+  for (const analysis of analyses) {
+    if (analysis.clarificationNeeded && !merged.clarificationNeeded) {
+      merged.clarificationNeeded = analysis.clarificationNeeded;
+      break;
+    }
   }
 
   return merged;

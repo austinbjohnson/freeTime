@@ -34,6 +34,7 @@ struct Scan: Identifiable, Codable {
 enum ScanStatus: String, Codable {
     case uploaded
     case extracting
+    case awaitingClarification = "awaiting_clarification"
     case researching
     case refining
     case completed
@@ -43,6 +44,7 @@ enum ScanStatus: String, Codable {
         switch self {
         case .uploaded: return "Queued"
         case .extracting: return "Reading Tag..."
+        case .awaitingClarification: return "Need Input"
         case .researching: return "Searching Web..."
         case .refining: return "Analyzing..."
         case .completed: return "Complete"
@@ -58,6 +60,26 @@ enum ScanStatus: String, Codable {
             return false
         }
     }
+    
+    var needsClarification: Bool {
+        self == .awaitingClarification
+    }
+}
+
+// MARK: - Clarification Types
+
+struct ClarificationOption: Codable, Identifiable {
+    var value: String
+    var label: String
+    
+    var id: String { value }
+}
+
+struct ClarificationRequest: Codable {
+    var field: String
+    var question: String
+    var options: [ClarificationOption]
+    var reason: String
 }
 
 // MARK: - Pipeline Data Models
@@ -72,8 +94,9 @@ struct ExtractedData: Codable {
     var rnNumber: String?
     var wplNumber: String?
     var careInstructions: [String]?
-    var rawText: [String]
-    var confidence: Double
+    var rawText: [String]?
+    var confidence: Double?
+    var clarificationNeeded: ClarificationRequest?
 }
 
 struct ResearchResults: Codable {

@@ -190,6 +190,28 @@ class ConvexService: ObservableObject {
         scans.removeAll { $0.id == scanId }
     }
     
+    // MARK: - Clarification
+    
+    /// Apply a clarification answer to a scan awaiting clarification
+    func applyClarification(scanId: String, field: String, value: String) async throws {
+        let args: [String: Any] = [
+            "scanId": scanId,
+            "field": field,
+            "value": value
+        ]
+        
+        _ = try await mutation("scans:applyClarification", args: args)
+    }
+    
+    /// Resume pipeline after clarification is applied
+    func resumePipeline(scanId: String) async throws {
+        let args: [String: Any] = [
+            "scanId": scanId
+        ]
+        
+        _ = try await action("pipeline/orchestrator:resumeAfterClarification", args: args)
+    }
+    
     // MARK: - Convex HTTP API
     
     private func query(_ functionName: String, args: [String: Any]) async throws -> Any? {
