@@ -29,6 +29,19 @@ struct CameraView: View {
                             .frame(height: 100)
                             .ignoresSafeArea()
                         }
+                        .overlay(alignment: .topTrailing) {
+                            // Image count badge
+                            if !viewModel.capturedImages.isEmpty {
+                                Text("\(viewModel.capturedImages.count)")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color(hex: "6366f1"))
+                                    .clipShape(Circle())
+                                    .padding(.trailing, 20)
+                                    .padding(.top, 60)
+                            }
+                        }
                 } else {
                     // Permission denied or not determined
                     VStack(spacing: 20) {
@@ -56,6 +69,11 @@ struct CameraView: View {
                     }
                 }
                 
+                // Photo Strip (when images captured)
+                if !viewModel.capturedImages.isEmpty {
+                    photoStripView
+                }
+                
                 // Bottom Controls
                 controlsView
             }
@@ -68,7 +86,8 @@ struct CameraView: View {
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
-                    await viewModel.processImage(image)
+                    viewModel.addCapturedImage(image)
+                    selectedItem = nil
                 }
             }
         }
@@ -79,8 +98,72 @@ struct CameraView: View {
         }
     }
     
+    // MARK: - Photo Strip
+    
+    private var photoStripView: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(Array(viewModel.capturedImages.enumerated()), id: \.element.id) { index, captured in
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: captured.thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: 70, height: 70)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(hex: "6366f1"), lineWidth: 2)
+                            )
+                        
+                        // Delete button
+                        Button {
+                            withAnimation {
+                                viewModel.removeCapturedImage(at: index)
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.white, Color(hex: "ef4444"))
+                        }
+                        .offset(x: 6, y: -6)
+                        
+                        // Image type indicator
+                        Text("\(index + 1)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 18, height: 18)
+                            .background(Color(hex: "6366f1"))
+                            .clipShape(Circle())
+                            .offset(x: -50, y: -6)
+                    }
+                }
+                
+                // Add more hint
+                if viewModel.capturedImages.count < 5 {
+                    VStack(spacing: 4) {
+                        Image(systemName: "plus.circle.dashed")
+                            .font(.system(size: 24))
+                            .foregroundColor(Color(hex: "8888a0"))
+                        Text("Add")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color(hex: "8888a0"))
+                    }
+                    .frame(width: 70, height: 70)
+                    .background(Color(hex: "1a1a24"))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .frame(height: 90)
+        .padding(.vertical, 8)
+        .background(Color(hex: "0a0a0f"))
+    }
+    
+    // MARK: - Controls
+    
     private var controlsView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 16) {
             // Processing indicator
             if viewModel.isProcessing {
                 HStack(spacing: 12) {
@@ -97,8 +180,17 @@ struct CameraView: View {
                 .cornerRadius(20)
             }
             
+            // Hint text
+            if !viewModel.isProcessing {
+                Text(viewModel.capturedImages.isEmpty 
+                    ? "Take photos of tag, garment, and condition" 
+                    : "\(viewModel.capturedImages.count)/5 photos • Tap Done when ready")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "8888a0"))
+            }
+            
             // Capture controls
-            HStack(spacing: 40) {
+            HStack(spacing: 30) {
                 // Photo library button
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     ZStack {
@@ -111,6 +203,8 @@ struct CameraView: View {
                             .foregroundColor(.white)
                     }
                 }
+                .disabled(viewModel.isProcessing || viewModel.capturedImages.count >= 5)
+                .opacity(viewModel.isProcessing || viewModel.capturedImages.count >= 5 ? 0.5 : 1)
                 
                 // Capture button
                 Button {
@@ -126,27 +220,49 @@ struct CameraView: View {
                             .frame(width: 60, height: 60)
                     }
                 }
-                .disabled(viewModel.isProcessing)
-                .opacity(viewModel.isProcessing ? 0.5 : 1)
+                .disabled(viewModel.isProcessing || viewModel.capturedImages.count >= 5)
+                .opacity(viewModel.isProcessing || viewModel.capturedImages.count >= 5 ? 0.5 : 1)
                 
-                // Flash toggle
-                Button {
-                    viewModel.toggleFlash()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color(hex: "1a1a24"))
-                            .frame(width: 52, height: 52)
-                        
-                        Image(systemName: viewModel.isFlashOn ? "bolt.fill" : "bolt.slash.fill")
-                            .font(.system(size: 22, weight: .medium))
-                            .foregroundColor(viewModel.isFlashOn ? Color(hex: "f59e0b") : .white)
+                // Done / Flash button
+                if viewModel.capturedImages.isEmpty {
+                    // Flash toggle when no images
+                    Button {
+                        viewModel.toggleFlash()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "1a1a24"))
+                                .frame(width: 52, height: 52)
+                            
+                            Image(systemName: viewModel.isFlashOn ? "bolt.fill" : "bolt.slash.fill")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundColor(viewModel.isFlashOn ? Color(hex: "f59e0b") : .white)
+                        }
                     }
+                } else {
+                    // Done button when images captured
+                    Button {
+                        Task {
+                            await viewModel.submitAllImages()
+                        }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "22c55e"))
+                                .frame(width: 52, height: 52)
+                            
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .disabled(viewModel.isProcessing)
+                    .opacity(viewModel.isProcessing ? 0.5 : 1)
                 }
             }
             .padding(.bottom, 30)
         }
-        .padding(.top, 20)
+        .padding(.top, 12)
         .background(
             Color(hex: "0a0a0f")
                 .ignoresSafeArea()
@@ -202,6 +318,28 @@ class PreviewView: UIView {
     }
 }
 
+// MARK: - Captured Image Model
+
+struct CapturedImage: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    let thumbnail: UIImage
+    let capturedAt: Date
+    
+    init(image: UIImage) {
+        self.image = image
+        self.thumbnail = CapturedImage.createThumbnail(from: image)
+        self.capturedAt = Date()
+    }
+    
+    private static func createThumbnail(from image: UIImage, size: CGSize = CGSize(width: 140, height: 140)) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+    }
+}
+
 // MARK: - Camera View Model
 
 @MainActor
@@ -215,6 +353,7 @@ class CameraViewModel: NSObject, ObservableObject {
     @Published var isFlashOn = false
     @Published var showError = false
     @Published var errorMessage: String?
+    @Published var capturedImages: [CapturedImage] = []
     
     // MARK: - Services
     
@@ -314,9 +453,35 @@ class CameraViewModel: NSObject, ObservableObject {
         isFlashOn.toggle()
     }
     
-    // MARK: - Image Processing
+    // MARK: - Multi-Image Management
     
-    func processImage(_ image: UIImage) async {
+    func addCapturedImage(_ image: UIImage) {
+        guard capturedImages.count < 5 else {
+            errorMessage = "Maximum 5 images per scan"
+            showError = true
+            return
+        }
+        
+        withAnimation(.spring(response: 0.3)) {
+            capturedImages.append(CapturedImage(image: image))
+        }
+        print("[Camera] Added image. Total: \(capturedImages.count)")
+    }
+    
+    func removeCapturedImage(at index: Int) {
+        guard index >= 0 && index < capturedImages.count else { return }
+        capturedImages.remove(at: index)
+        print("[Camera] Removed image at \(index). Total: \(capturedImages.count)")
+    }
+    
+    func clearCapturedImages() {
+        capturedImages.removeAll()
+    }
+    
+    // MARK: - Submit All Images
+    
+    func submitAllImages() async {
+        guard !capturedImages.isEmpty else { return }
         guard let convexService = convexService else {
             errorMessage = "Service not available"
             showError = true
@@ -324,49 +489,56 @@ class CameraViewModel: NSObject, ObservableObject {
         }
         
         isProcessing = true
-        processingStatus = "Analyzing image..."
+        processingStatus = "Preparing images..."
         
         do {
-            // Step 1: On-device Vision analysis
-            print("[Process] Step 1: Vision analysis...")
-            processingStatus = "Reading tag..."
-            let tagAnalysis = try await visionService.analyzeTag(image: image)
-            print("[Process] Vision found \(tagAnalysis.allHints.count) hints")
+            // Collect all hints from vision analysis
+            var allHints: [String] = []
+            var storageIds: [String] = []
             
-            // Step 2: Upload image to Convex
-            print("[Process] Step 2: Uploading image...")
-            processingStatus = "Uploading..."
-            guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-                throw NSError(domain: "TagScanner", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to compress image"])
+            // Step 1: Analyze and upload each image
+            for (index, captured) in capturedImages.enumerated() {
+                processingStatus = "Analyzing image \(index + 1)/\(capturedImages.count)..."
+                
+                // On-device Vision analysis
+                let tagAnalysis = try await visionService.analyzeTag(image: captured.image)
+                allHints.append(contentsOf: tagAnalysis.allHints)
+                
+                // Upload image
+                processingStatus = "Uploading image \(index + 1)/\(capturedImages.count)..."
+                guard let imageData = captured.image.jpegData(compressionQuality: 0.8) else {
+                    throw NSError(domain: "Camera", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to compress image \(index + 1)"])
+                }
+                
+                let storageId = try await convexService.uploadImage(data: imageData, mimeType: "image/jpeg")
+                storageIds.append(storageId)
+                print("[Camera] Uploaded image \(index + 1): \(storageId)")
             }
-            print("[Process] Image size: \(imageData.count / 1024)KB")
             
-            let storageId = try await convexService.uploadImage(data: imageData, mimeType: "image/jpeg")
-            print("[Process] Uploaded, storageId: \(storageId)")
-            
-            // Step 3: Create scan record
-            print("[Process] Step 3: Creating scan...")
+            // Step 2: Create scan record
             processingStatus = "Creating scan..."
-            let scanId = try await convexService.createScan(imageStorageId: storageId)
-            print("[Process] Created scan: \(scanId)")
+            let scanId = try await convexService.createScan(imageStorageId: storageIds[0])
+            print("[Camera] Created scan: \(scanId)")
             
-            // Step 4: Start pipeline processing (this takes 60-90 seconds!)
-            print("[Process] Step 4: Running pipeline (this may take 60-90 seconds)...")
-            processingStatus = "Analyzing with AI..."
-            try await convexService.processScan(
+            // Step 3: Process with multi-image pipeline
+            processingStatus = "Processing with AI..."
+            try await convexService.processMultiImageScan(
                 scanId: scanId,
-                imageStorageId: storageId,
-                onDeviceHints: tagAnalysis.allHints
+                imageStorageIds: storageIds,
+                onDeviceHints: allHints.isEmpty ? nil : Array(Set(allHints)) // Dedupe hints
             )
-            print("[Process] Pipeline complete!")
             
             processingStatus = "Complete!"
+            print("[Camera] Multi-image processing complete!")
+            
+            // Clear captured images
+            clearCapturedImages()
             
             // Refresh scans list
             try await convexService.fetchUserScans()
             
         } catch let error as NSError {
-            print("[Process] Error: \(error.domain) code=\(error.code) \(error.localizedDescription)")
+            print("[Camera] Error: \(error.domain) code=\(error.code) \(error.localizedDescription)")
             if error.code == -1001 {
                 errorMessage = "Processing timed out. The AI analysis takes 60-90 seconds. Please try again."
             } else {
@@ -374,7 +546,7 @@ class CameraViewModel: NSObject, ObservableObject {
             }
             showError = true
         } catch {
-            print("[Process] Error: \(error)")
+            print("[Camera] Error: \(error)")
             errorMessage = error.localizedDescription
             showError = true
         }
@@ -401,7 +573,8 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
                 return
             }
             
-            await self.processImage(image)
+            // Add to captured images instead of immediately processing
+            self.addCapturedImage(image)
         }
     }
 }
@@ -410,4 +583,3 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
     CameraView()
         .environmentObject(ConvexService())
 }
-
