@@ -160,20 +160,27 @@ struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     
     func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+        let view = PreviewView()
+        view.backgroundColor = .black
         
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = view.bounds
         view.layer.addSublayer(previewLayer)
         
+        // Store reference for updates
+        view.previewLayer = previewLayer
         context.coordinator.previewLayer = previewLayer
         
+        print("[Camera] Preview layer created")
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
-        context.coordinator.previewLayer?.frame = uiView.bounds
+        // Update frame when view size changes
+        DispatchQueue.main.async {
+            context.coordinator.previewLayer?.frame = uiView.bounds
+            print("[Camera] Preview frame updated: \(uiView.bounds)")
+        }
     }
     
     func makeCoordinator() -> Coordinator {
@@ -182,6 +189,16 @@ struct CameraPreviewView: UIViewRepresentable {
     
     class Coordinator {
         var previewLayer: AVCaptureVideoPreviewLayer?
+    }
+}
+
+// Custom UIView that updates preview layer frame on layout
+class PreviewView: UIView {
+    var previewLayer: AVCaptureVideoPreviewLayer?
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        previewLayer?.frame = bounds
     }
 }
 
@@ -231,27 +248,50 @@ class CameraViewModel: NSObject, ObservableObject {
     // MARK: - Camera Setup
     
     private func setupCamera() {
-        session.beginConfiguration()
-        session.sessionPreset = .photo
-        
-        // Add camera input
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-              let input = try? AVCaptureDeviceInput(device: device),
-              session.canAddInput(input) else {
-            return
-        }
-        session.addInput(input)
-        
-        // Add photo output
-        let output = AVCapturePhotoOutput()
-        guard session.canAddOutput(output) else { return }
-        session.addOutput(output)
-        photoOutput = output
-        
-        session.commitConfiguration()
-        
-        Task.detached { [weak self] in
-            self?.session.startRunning()
+        // Run camera setup on background queue to avoid blocking UI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            self.session.beginConfiguration()
+            self.session.sessionPreset = .photo
+            
+            // Add camera input
+            guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
+                print("[Camera] No back camera available")
+                self.session.commitConfiguration()
+                return
+            }
+            
+            do {
+                let input = try AVCaptureDeviceInput(device: device)
+                if self.session.canAddInput(input) {
+                    self.session.addInput(input)
+                } else {
+                    print("[Camera] Cannot add camera input")
+                    self.session.commitConfiguration()
+                    return
+                }
+            } catch {
+                print("[Camera] Error creating input: \(error)")
+                self.session.commitConfiguration()
+                return
+            }
+            
+            // Add photo output
+            let output = AVCapturePhotoOutput()
+            if self.session.canAddOutput(output) {
+                self.session.addOutput(output)
+                self.photoOutput = output
+            } else {
+                print("[Camera] Cannot add photo output")
+            }
+            
+            self.session.commitConfiguration()
+            
+            // Start the session
+            print("[Camera] Starting capture session...")
+            self.session.startRunning()
+            print("[Camera] Session running: \(self.session.isRunning)")
         }
     }
     
@@ -288,35 +328,53 @@ class CameraViewModel: NSObject, ObservableObject {
         
         do {
             // Step 1: On-device Vision analysis
+            print("[Process] Step 1: Vision analysis...")
             processingStatus = "Reading tag..."
             let tagAnalysis = try await visionService.analyzeTag(image: image)
+            print("[Process] Vision found \(tagAnalysis.allHints.count) hints")
             
             // Step 2: Upload image to Convex
+            print("[Process] Step 2: Uploading image...")
             processingStatus = "Uploading..."
             guard let imageData = image.jpegData(compressionQuality: 0.8) else {
                 throw NSError(domain: "TagScanner", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to compress image"])
             }
+            print("[Process] Image size: \(imageData.count / 1024)KB")
             
             let storageId = try await convexService.uploadImage(data: imageData, mimeType: "image/jpeg")
+            print("[Process] Uploaded, storageId: \(storageId)")
             
             // Step 3: Create scan record
+            print("[Process] Step 3: Creating scan...")
             processingStatus = "Creating scan..."
             let scanId = try await convexService.createScan(imageStorageId: storageId)
+            print("[Process] Created scan: \(scanId)")
             
-            // Step 4: Start pipeline processing
-            processingStatus = "Processing..."
+            // Step 4: Start pipeline processing (this takes 60-90 seconds!)
+            print("[Process] Step 4: Running pipeline (this may take 60-90 seconds)...")
+            processingStatus = "Analyzing with AI..."
             try await convexService.processScan(
                 scanId: scanId,
                 imageStorageId: storageId,
                 onDeviceHints: tagAnalysis.allHints
             )
+            print("[Process] Pipeline complete!")
             
             processingStatus = "Complete!"
             
             // Refresh scans list
             try await convexService.fetchUserScans()
             
+        } catch let error as NSError {
+            print("[Process] Error: \(error.domain) code=\(error.code) \(error.localizedDescription)")
+            if error.code == -1001 {
+                errorMessage = "Processing timed out. The AI analysis takes 60-90 seconds. Please try again."
+            } else {
+                errorMessage = error.localizedDescription
+            }
+            showError = true
         } catch {
+            print("[Process] Error: \(error)")
             errorMessage = error.localizedDescription
             showError = true
         }
