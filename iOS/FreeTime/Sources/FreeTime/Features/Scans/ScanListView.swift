@@ -3,6 +3,11 @@ import SwiftUI
 struct ScanListView: View {
     @EnvironmentObject var convexService: ConvexService
     @State private var selectedScan: Scan?
+    @State private var scanToDelete: Scan?
+    @State private var showDeleteConfirmation = false
+    @State private var isEditMode = false
+    @State private var selectedForDeletion: Set<String> = []
+    @State private var showBatchDeleteConfirmation = false
     
     var body: some View {
         NavigationStack {
@@ -20,11 +25,46 @@ struct ScanListView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbarBackground(Color(hex: "0a0a0f"), for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !convexService.scans.isEmpty {
+                        Button(isEditMode ? "Done" : "Edit") {
+                            withAnimation {
+                                isEditMode.toggle()
+                                if !isEditMode {
+                                    selectedForDeletion.removeAll()
+                                }
+                            }
+                        }
+                        .foregroundColor(Color(hex: "6366f1"))
+                    }
+                }
+            }
             .refreshable {
                 try? await convexService.fetchUserScans()
             }
             .sheet(item: $selectedScan) { scan in
                 ScanDetailView(scan: scan)
+            }
+            .alert("Delete Scan?", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    scanToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let scan = scanToDelete {
+                        deleteScan(scan)
+                    }
+                }
+            } message: {
+                Text("This will permanently delete this scan and its images. This cannot be undone.")
+            }
+            .alert("Delete \(selectedForDeletion.count) Scans?", isPresented: $showBatchDeleteConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete All", role: .destructive) {
+                    deleteSelectedScans()
+                }
+            } message: {
+                Text("This will permanently delete \(selectedForDeletion.count) scans and their images. This cannot be undone.")
             }
         }
         .task {
@@ -50,16 +90,103 @@ struct ScanListView: View {
     }
     
     private var scansList: some View {
-        ScrollView {
-            LazyVStack(spacing: 16) {
+        VStack(spacing: 0) {
+            // Batch delete button when in edit mode
+            if isEditMode && !selectedForDeletion.isEmpty {
+                Button {
+                    showBatchDeleteConfirmation = true
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                        Text("Delete \(selectedForDeletion.count) Selected")
+                    }
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(hex: "ef4444"))
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+            
+            List {
                 ForEach(convexService.scans) { scan in
-                    ScanCardView(scan: scan)
-                        .onTapGesture {
-                            selectedScan = scan
+                    HStack(spacing: 12) {
+                        // Selection checkbox in edit mode
+                        if isEditMode {
+                            Button {
+                                toggleSelection(scan)
+                            } label: {
+                                Image(systemName: selectedForDeletion.contains(scan.id) ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(selectedForDeletion.contains(scan.id) ? Color(hex: "6366f1") : Color(hex: "8888a0"))
+                            }
+                            .buttonStyle(.plain)
                         }
+                        
+                        ScanCardView(scan: scan)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if isEditMode {
+                                    toggleSelection(scan)
+                                } else {
+                                    selectedScan = scan
+                                }
+                            }
+                    }
+                    .listRowBackground(Color(hex: "0a0a0f"))
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            scanToDelete = scan
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
                 }
             }
-            .padding()
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(hex: "0a0a0f"))
+        }
+    }
+    
+    // MARK: - Actions
+    
+    private func toggleSelection(_ scan: Scan) {
+        if selectedForDeletion.contains(scan.id) {
+            selectedForDeletion.remove(scan.id)
+        } else {
+            selectedForDeletion.insert(scan.id)
+        }
+    }
+    
+    private func deleteScan(_ scan: Scan) {
+        Task {
+            do {
+                try await convexService.deleteScan(scanId: scan.id)
+                scanToDelete = nil
+            } catch {
+                print("[Scans] Error deleting scan: \(error)")
+            }
+        }
+    }
+    
+    private func deleteSelectedScans() {
+        Task {
+            for scanId in selectedForDeletion {
+                do {
+                    try await convexService.deleteScan(scanId: scanId)
+                } catch {
+                    print("[Scans] Error deleting scan \(scanId): \(error)")
+                }
+            }
+            selectedForDeletion.removeAll()
+            isEditMode = false
         }
     }
 }
