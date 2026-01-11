@@ -1,0 +1,18 @@
+// Release/App Store configuration
+// These values should be the production credentials
+
+// WorkOS Client ID - same as development for now
+// (WorkOS doesn't distinguish dev/prod environments by default)
+WORKOS_CLIENT_ID = client_01KEG2TE5HZ3R03AEM6GSTY5BH
+
+// Production Convex URL
+CONVEX_URL = https://qualified-sheep-863.convex.cloud
+
+// Release optimizations
+SWIFT_OPTIMIZATION_LEVEL = -O
+SWIFT_COMPILATION_MODE = wholemodule
+GCC_OPTIMIZATION_LEVEL = s
+ENABLE_TESTABILITY = NO
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+
+

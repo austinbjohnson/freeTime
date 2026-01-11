@@ -8,7 +8,7 @@ options:
 
 configFiles:
   Debug: Config/Development.local.xcconfig
-  Release: Config/Development.local.xcconfig
+  Release: Config/Release.xcconfig
 
 settings:
   base:
@@ -27,6 +27,8 @@ targets:
       - path: Sources/FreeTime
         excludes:
           - "**/.DS_Store"
+    resources:
+      - path: Sources/FreeTime/PrivacyInfo.xcprivacy
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.ajohnson.freetime
