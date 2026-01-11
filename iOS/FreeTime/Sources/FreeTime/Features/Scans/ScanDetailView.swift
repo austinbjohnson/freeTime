@@ -9,12 +9,16 @@ struct ScanDetailView: View {
     @State private var showCustomInput = false
     @FocusState private var isCustomInputFocused: Bool
     
+    private var displayScan: Scan {
+        convexService.scans.first { $0.id == scan.id } ?? scan
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Image (cached for instant loads)
-                    CachedAsyncImage(url: URL(string: scan.imageUrl ?? "")) { image in
+                    CachedAsyncImage(url: URL(string: displayScan.imageUrl ?? "")) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fit)
@@ -30,47 +34,47 @@ struct ScanDetailView: View {
                     .padding(.horizontal)
                     
                     // Clarification Card (when awaiting user input)
-                    if scan.status.needsClarification,
-                       let clarification = scan.extractedData?.clarificationNeeded {
+                    if displayScan.status.needsClarification,
+                       let clarification = displayScan.extractedData?.clarificationNeeded {
                         clarificationCard(clarification: clarification)
                     }
                     
                     // Processing Progress (when not complete)
-                    if scan.status.isProcessing {
-                        ProcessingProgressView(status: scan.status)
+                    if displayScan.status.isProcessing {
+                        ProcessingProgressView(status: displayScan.status)
                             .padding(.horizontal)
                     }
                     
                     // Price Range Card
-                    if let findings = scan.refinedFindings {
+                    if let findings = displayScan.refinedFindings {
                         priceCard(findings: findings)
                     }
                     
                     // Extracted Data
-                    if let data = scan.extractedData {
+                    if let data = displayScan.extractedData {
                         extractedDataCard(data: data)
                     }
                     
                     // Insights
-                    if let findings = scan.refinedFindings {
+                    if let findings = displayScan.refinedFindings {
                         insightsCard(findings: findings)
                     }
                     
                     // Comparable Listings
-                    if let findings = scan.refinedFindings,
+                    if let findings = displayScan.refinedFindings,
                        !findings.comparableListings.isEmpty {
                         comparableListingsCard(listings: findings.comparableListings)
                     }
                     
                     // Error Message
-                    if let error = scan.errorMessage {
+                    if let error = displayScan.errorMessage {
                         errorCard(message: error)
                     }
                 }
                 .padding(.vertical)
             }
             .background(Color(hex: "0a0a0f"))
-            .navigationTitle(scan.extractedData?.brand ?? "Scan Details")
+            .navigationTitle(displayScan.extractedData?.brand ?? "Scan Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color(hex: "0a0a0f"), for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -226,16 +230,12 @@ struct ScanDetailView: View {
         Task {
             do {
                 // Apply the clarification
-                try await convexService.applyClarification(scanId: scan.id, field: field, value: value)
+                try await convexService.applyClarification(scanId: displayScan.id, field: field, value: value)
                 
                 // Resume the pipeline (runs research + refinement in background)
-                try await convexService.resumePipeline(scanId: scan.id)
+                try await convexService.resumePipeline(scanId: displayScan.id)
                 
-                // Refresh scans to get updated status
-                try await convexService.fetchUserScans()
-                
-                // Dismiss so user sees updated scan in list
-                // (The scan object in this view is immutable)
+                // Updates stream via real-time subscription; return to list
                 dismiss()
             } catch {
                 print("Clarification error: \(error)")
@@ -508,5 +508,5 @@ struct ScanDetailView: View {
         ),
         createdAt: Date()
     ))
+    .environmentObject(ConvexService())
 }
-
