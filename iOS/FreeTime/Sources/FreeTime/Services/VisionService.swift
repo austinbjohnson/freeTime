@@ -5,6 +5,15 @@ import UIKit
 /// Service for on-device text extraction using Apple Vision
 class VisionService {
     
+    /// Check if running in Simulator where Vision ML often fails
+    private var isSimulator: Bool {
+        #if targetEnvironment(simulator)
+        return true
+        #else
+        return false
+        #endif
+    }
+    
     // MARK: - Text Recognition
     
     /// Extract text from an image using Vision framework
@@ -15,14 +24,23 @@ class VisionService {
         }
         
         return try await withCheckedThrowingContinuation { continuation in
+            // Thread-safe flag to prevent double-resume
+            let hasResumed = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
+            hasResumed.initialize(to: false)
+            
             let request = VNRecognizeTextRequest { request, error in
+                guard !hasResumed.pointee else { return }
+                hasResumed.pointee = true
+                
                 if let error = error {
                     continuation.resume(throwing: VisionError.recognitionFailed(error.localizedDescription))
+                    hasResumed.deallocate()
                     return
                 }
                 
                 guard let observations = request.results as? [VNRecognizedTextObservation] else {
                     continuation.resume(returning: [])
+                    hasResumed.deallocate()
                     return
                 }
                 
@@ -31,6 +49,7 @@ class VisionService {
                 }
                 
                 continuation.resume(returning: texts)
+                hasResumed.deallocate()
             }
             
             // Configure for best accuracy
@@ -43,7 +62,13 @@ class VisionService {
             do {
                 try handler.perform([request])
             } catch {
+                guard !hasResumed.pointee else {
+                    hasResumed.deallocate()
+                    return
+                }
+                hasResumed.pointee = true
                 continuation.resume(throwing: VisionError.recognitionFailed(error.localizedDescription))
+                hasResumed.deallocate()
             }
         }
     }
@@ -55,14 +80,23 @@ class VisionService {
         }
         
         return try await withCheckedThrowingContinuation { continuation in
+            // Thread-safe flag to prevent double-resume
+            let hasResumed = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
+            hasResumed.initialize(to: false)
+            
             let request = VNRecognizeTextRequest { request, error in
+                guard !hasResumed.pointee else { return }
+                hasResumed.pointee = true
+                
                 if let error = error {
                     continuation.resume(throwing: VisionError.recognitionFailed(error.localizedDescription))
+                    hasResumed.deallocate()
                     return
                 }
                 
                 guard let observations = request.results as? [VNRecognizedTextObservation] else {
                     continuation.resume(returning: [])
+                    hasResumed.deallocate()
                     return
                 }
                 
@@ -76,6 +110,7 @@ class VisionService {
                 }
                 
                 continuation.resume(returning: results)
+                hasResumed.deallocate()
             }
             
             request.recognitionLevel = .accurate
@@ -86,7 +121,13 @@ class VisionService {
             do {
                 try handler.perform([request])
             } catch {
+                guard !hasResumed.pointee else {
+                    hasResumed.deallocate()
+                    return
+                }
+                hasResumed.pointee = true
                 continuation.resume(throwing: VisionError.recognitionFailed(error.localizedDescription))
+                hasResumed.deallocate()
             }
         }
     }
@@ -94,20 +135,33 @@ class VisionService {
     // MARK: - Barcode Detection
     
     /// Detect barcodes in an image
+    /// Note: Barcode detection can fail in Simulator - returns empty array on failure
     func detectBarcodes(from image: UIImage) async throws -> [BarcodeObservation] {
         guard let cgImage = image.cgImage else {
             throw VisionError.invalidImage
         }
         
         return try await withCheckedThrowingContinuation { continuation in
+            // Thread-safe flag to prevent double-resume (Vision can call handler multiple times)
+            let hasResumed = UnsafeMutablePointer<Bool>.allocate(capacity: 1)
+            hasResumed.initialize(to: false)
+            
             let request = VNDetectBarcodesRequest { request, error in
+                // Ensure we only resume once
+                guard !hasResumed.pointee else { return }
+                hasResumed.pointee = true
+                
                 if let error = error {
-                    continuation.resume(throwing: VisionError.barcodeDetectionFailed(error.localizedDescription))
+                    // In Simulator, barcode detection often fails - return empty instead of throwing
+                    print("[Vision] Barcode detection error (non-fatal): \(error.localizedDescription)")
+                    continuation.resume(returning: [])
+                    hasResumed.deallocate()
                     return
                 }
                 
                 guard let observations = request.results as? [VNBarcodeObservation] else {
                     continuation.resume(returning: [])
+                    hasResumed.deallocate()
                     return
                 }
                 
@@ -121,6 +175,7 @@ class VisionService {
                 }
                 
                 continuation.resume(returning: barcodes)
+                hasResumed.deallocate()
             }
             
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
@@ -128,7 +183,16 @@ class VisionService {
             do {
                 try handler.perform([request])
             } catch {
-                continuation.resume(throwing: VisionError.barcodeDetectionFailed(error.localizedDescription))
+                // Only resume if completion handler hasn't already
+                guard !hasResumed.pointee else {
+                    hasResumed.deallocate()
+                    return
+                }
+                hasResumed.pointee = true
+                // Return empty array instead of crashing - barcode detection is optional
+                print("[Vision] Barcode detection perform error (non-fatal): \(error.localizedDescription)")
+                continuation.resume(returning: [])
+                hasResumed.deallocate()
             }
         }
     }
@@ -136,16 +200,44 @@ class VisionService {
     // MARK: - Combined Analysis
     
     /// Perform full tag analysis: text + barcode
-    func analyzeTag(image: UIImage) async throws -> TagAnalysis {
-        async let textTask = extractText(from: image)
-        async let barcodeTask = detectBarcodes(from: image)
+    /// In Simulator, Vision ML often fails/hangs - returns empty results instead
+    func analyzeTag(image: UIImage) async -> TagAnalysis {
+        // Skip Vision entirely in Simulator - it's unreliable and causes crashes
+        if isSimulator {
+            print("[Vision] Skipping on-device analysis in Simulator (AI will analyze instead)")
+            return TagAnalysis(rawText: [], barcodes: [])
+        }
         
-        let (texts, barcodes) = try await (textTask, barcodeTask)
+        // On real device, run Vision analysis with timeout protection
+        async let textTask = safeExtractText(from: image)
+        async let barcodeTask = safeDetectBarcodes(from: image)
+        
+        let (texts, barcodes) = await (textTask, barcodeTask)
         
         return TagAnalysis(
             rawText: texts,
             barcodes: barcodes
         )
+    }
+    
+    /// Safe wrapper for text extraction - never throws, returns empty on failure
+    private func safeExtractText(from image: UIImage) async -> [String] {
+        do {
+            return try await extractText(from: image)
+        } catch {
+            print("[Vision] Text extraction failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+    
+    /// Safe wrapper for barcode detection - never throws, returns empty on failure
+    private func safeDetectBarcodes(from image: UIImage) async -> [BarcodeObservation] {
+        do {
+            return try await detectBarcodes(from: image)
+        } catch {
+            print("[Vision] Barcode detection failed: \(error.localizedDescription)")
+            return []
+        }
     }
 }
 

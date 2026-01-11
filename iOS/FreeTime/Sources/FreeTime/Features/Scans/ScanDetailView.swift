@@ -5,6 +5,9 @@ struct ScanDetailView: View {
     @EnvironmentObject private var convexService: ConvexService
     @Environment(\.dismiss) private var dismiss
     @State private var isSubmittingClarification = false
+    @State private var customAnswer = ""
+    @State private var showCustomInput = false
+    @FocusState private var isCustomInputFocused: Bool
     
     var body: some View {
         NavigationStack {
@@ -130,6 +133,71 @@ struct ScanDetailView: View {
                         .buttonStyle(.plain)
                     }
                     
+                    // Custom "Other" input
+                    if showCustomInput {
+                        HStack(spacing: 8) {
+                            TextField("Type your answer...", text: $customAnswer)
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                                .padding(12)
+                                .background(Color(hex: "1a1a24"))
+                                .cornerRadius(10)
+                                .focused($isCustomInputFocused)
+                                .onChange(of: customAnswer) { _, newValue in
+                                    // Limit to 128 characters
+                                    if newValue.count > 128 {
+                                        customAnswer = String(newValue.prefix(128))
+                                    }
+                                }
+                                .onSubmit {
+                                    if !customAnswer.trimmingCharacters(in: .whitespaces).isEmpty {
+                                        submitClarification(field: clarification.field, value: customAnswer.trimmingCharacters(in: .whitespaces))
+                                    }
+                                }
+                            
+                            Button {
+                                if !customAnswer.trimmingCharacters(in: .whitespaces).isEmpty {
+                                    submitClarification(field: clarification.field, value: customAnswer.trimmingCharacters(in: .whitespaces))
+                                }
+                            } label: {
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(customAnswer.trimmingCharacters(in: .whitespaces).isEmpty 
+                                        ? Color(hex: "8888a0") 
+                                        : Color(hex: "6366f1"))
+                            }
+                            .disabled(customAnswer.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                        
+                        // Character count
+                        HStack {
+                            Spacer()
+                            Text("\(customAnswer.count)/128")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "8888a0"))
+                        }
+                    } else {
+                        // "Other" button to show text field
+                        Button {
+                            showCustomInput = true
+                            isCustomInputFocused = true
+                        } label: {
+                            HStack {
+                                Text("Other...")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(Color(hex: "8888a0"))
+                                Spacer()
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color(hex: "8888a0"))
+                            }
+                            .padding(12)
+                            .background(Color(hex: "1a1a24"))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
                     // Skip button
                     Button {
                         submitClarification(field: clarification.field, value: "skip")
@@ -160,16 +228,19 @@ struct ScanDetailView: View {
                 // Apply the clarification
                 try await convexService.applyClarification(scanId: scan.id, field: field, value: value)
                 
-                // Resume the pipeline
+                // Resume the pipeline (runs research + refinement in background)
                 try await convexService.resumePipeline(scanId: scan.id)
                 
                 // Refresh scans to get updated status
                 try await convexService.fetchUserScans()
+                
+                // Dismiss so user sees updated scan in list
+                // (The scan object in this view is immutable)
+                dismiss()
             } catch {
                 print("Clarification error: \(error)")
+                isSubmittingClarification = false
             }
-            
-            isSubmittingClarification = false
         }
     }
     

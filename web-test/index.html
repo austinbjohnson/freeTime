@@ -653,6 +653,19 @@
             <div class="result-content">
               <p id="clarification-question" style="font-size: 1rem; margin-bottom: 1rem;"></p>
               <div id="clarification-options" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+              
+              <!-- Custom "Other" input -->
+              <div id="clarification-custom" style="margin-top: 0.75rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <input type="text" id="clarification-custom-input" placeholder="Or type your own answer..." 
+                         maxlength="128" style="flex: 1; padding: 0.6rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary);">
+                  <button id="clarification-custom-btn" style="width: auto; padding: 0.6rem 1rem;" disabled>Submit</button>
+                </div>
+                <div style="text-align: right; font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                  <span id="clarification-char-count">0</span>/128
+                </div>
+              </div>
+              
               <button id="skip-clarification-btn" style="background: var(--bg-tertiary); margin-top: 0.75rem;">Not sure • Skip</button>
             </div>
           </div>
@@ -1094,11 +1107,18 @@
         const question = document.getElementById('clarification-question');
         const options = document.getElementById('clarification-options');
         const skipBtn = document.getElementById('skip-clarification-btn');
+        const customInput = document.getElementById('clarification-custom-input');
+        const customBtn = document.getElementById('clarification-custom-btn');
+        const charCount = document.getElementById('clarification-char-count');
         
         section.style.display = 'block';
         question.textContent = clarification.question;
         options.innerHTML = '';
+        customInput.value = '';
+        charCount.textContent = '0';
+        customBtn.disabled = true;
         
+        // Preset option buttons
         clarification.options.forEach(opt => {
           const btn = document.createElement('button');
           btn.style.background = 'var(--bg-tertiary)';
@@ -1117,6 +1137,35 @@
           });
           options.appendChild(btn);
         });
+        
+        // Custom input handling
+        customInput.oninput = () => {
+          const len = customInput.value.length;
+          charCount.textContent = len;
+          customBtn.disabled = customInput.value.trim().length === 0;
+        };
+        
+        customInput.onkeypress = (e) => {
+          if (e.key === 'Enter' && customInput.value.trim().length > 0) {
+            customBtn.click();
+          }
+        };
+        
+        customBtn.onclick = async () => {
+          const customValue = customInput.value.trim();
+          if (customValue.length === 0) return;
+          
+          section.style.display = 'none';
+          
+          // Apply clarification with custom value
+          await convex.mutation("scans:applyClarification", {
+            scanId: scanId,
+            field: clarification.field,
+            value: customValue
+          });
+          
+          resolve(customValue);
+        };
         
         skipBtn.onclick = () => {
           section.style.display = 'none';

@@ -633,8 +633,8 @@ class CameraViewModel: NSObject, ObservableObject {
             for (index, captured) in capturedImages.enumerated() {
                 processingStatus = "Reading image \(index + 1)/\(capturedImages.count)..."
                 
-                // On-device Vision analysis
-                let tagAnalysis = try await visionService.analyzeTag(image: captured.image)
+                // On-device Vision analysis (skipped in Simulator, AI does the real work)
+                let tagAnalysis = await visionService.analyzeTag(image: captured.image)
                 allHints.append(contentsOf: tagAnalysis.allHints)
                 
                 // Upload image
