@@ -192,4 +192,49 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"]),
+
+  // ============================================
+  // Research Cache (Brand Code Decoding & Lookups)
+  // ============================================
+
+  // Cache decoded style codes and research results to avoid redundant lookups
+  researchCache: defineTable({
+    // Key fields for matching
+    brand: v.string(),                        // Canonical brand name (uppercase)
+    normalizedCode: v.string(),               // Normalized style/SKU code
+    
+    // Decoded information from brand-specific decoder
+    decodedInfo: v.optional(v.object({
+      productLine: v.optional(v.string()),
+      category: v.optional(v.string()),
+      season: v.optional(v.string()),
+      year: v.optional(v.string()),
+      gender: v.optional(v.string()),
+      material: v.optional(v.string()),
+      patternType: v.optional(v.string()),
+      confidence: v.number(),
+      searchTerms: v.array(v.string()),
+    })),
+    
+    // Cached market data (optional, expires)
+    marketData: v.optional(v.object({
+      avgPrice: v.optional(v.number()),
+      priceRangeLow: v.optional(v.number()),
+      priceRangeHigh: v.optional(v.number()),
+      currency: v.string(),
+      listingsFound: v.number(),
+      soldListingsFound: v.number(),
+      marketActivity: v.optional(v.string()),
+      sources: v.array(v.string()),
+    })),
+    
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    hitCount: v.number(),                     // How many times this cache entry was used
+    lastHitAt: v.optional(v.number()),
+  })
+    .index("by_brand_code", ["brand", "normalizedCode"])
+    .index("by_brand", ["brand"])
+    .index("by_updated", ["updatedAt"]),
 });
