@@ -261,67 +261,46 @@ struct ScanCardView: View {
 struct CompactProgressBar: View {
     let status: ScanStatus
     
-    private var progress: CGFloat {
-        switch status {
-        case .uploaded: return 0.0
-        case .extracting: return 0.33
-        case .researching: return 0.66
-        case .refining: return 0.9
-        case .completed: return 1.0
-        case .failed: return 0.0
-        }
-    }
+    private let stages: [(status: ScanStatus, label: String)] = [
+        (.extracting, "Read"),
+        (.researching, "Search"),
+        (.refining, "Analyze")
+    ]
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    // Background
-                    Capsule()
-                        .fill(Color(hex: "1a1a24"))
-                        .frame(height: 4)
+        HStack(spacing: 0) {
+            ForEach(Array(stages.enumerated()), id: \.offset) { index, stage in
+                HStack(spacing: 4) {
+                    // Dot or checkmark
+                    ZStack {
+                        Circle()
+                            .fill(dotColor(for: stage.status))
+                            .frame(width: 14, height: 14)
+                        
+                        if isComplete(stage.status) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundColor(.white)
+                        } else if isActive(stage.status) {
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 6, height: 6)
+                        }
+                    }
                     
-                    // Progress
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "6366f1"), Color(hex: "22c55e")],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geo.size.width * progress, height: 4)
-                        .animation(.easeInOut(duration: 0.3), value: progress)
+                    Text(stage.label)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(textColor(for: stage.status))
+                }
+                
+                // Connector
+                if index < stages.count - 1 {
+                    Rectangle()
+                        .fill(connectorColor(afterStage: stage.status))
+                        .frame(width: 12, height: 2)
+                        .padding(.horizontal, 2)
                 }
             }
-            .frame(height: 4)
-            
-            HStack(spacing: 4) {
-                Text("1")
-                    .foregroundColor(status == .extracting ? Color(hex: "6366f1") : Color(hex: "22c55e"))
-                Text("→")
-                    .foregroundColor(Color(hex: "8888a0"))
-                Text("2")
-                    .foregroundColor(statusColor(for: .researching))
-                Text("→")
-                    .foregroundColor(Color(hex: "8888a0"))
-                Text("3")
-                    .foregroundColor(statusColor(for: .refining))
-            }
-            .font(.system(size: 10, weight: .medium))
-        }
-    }
-    
-    private func statusColor(for stageStatus: ScanStatus) -> Color {
-        let currentIndex = stageIndex(status)
-        let stageIdx = stageIndex(stageStatus)
-        
-        if stageIdx < currentIndex {
-            return Color(hex: "22c55e") // Complete
-        } else if stageIdx == currentIndex {
-            return Color(hex: "6366f1") // Active
-        } else {
-            return Color(hex: "8888a0") // Pending
         }
     }
     
@@ -332,6 +311,38 @@ struct CompactProgressBar: View {
         case .refining: return 2
         default: return -1
         }
+    }
+    
+    private func isComplete(_ stageStatus: ScanStatus) -> Bool {
+        stageIndex(stageStatus) < stageIndex(status)
+    }
+    
+    private func isActive(_ stageStatus: ScanStatus) -> Bool {
+        stageStatus == status
+    }
+    
+    private func dotColor(for stageStatus: ScanStatus) -> Color {
+        if isComplete(stageStatus) {
+            return Color(hex: "22c55e")
+        } else if isActive(stageStatus) {
+            return Color(hex: "6366f1")
+        } else {
+            return Color(hex: "2a2a34")
+        }
+    }
+    
+    private func textColor(for stageStatus: ScanStatus) -> Color {
+        if isComplete(stageStatus) {
+            return Color(hex: "22c55e")
+        } else if isActive(stageStatus) {
+            return Color(hex: "6366f1")
+        } else {
+            return Color(hex: "8888a0")
+        }
+    }
+    
+    private func connectorColor(afterStage stageStatus: ScanStatus) -> Color {
+        isComplete(stageStatus) ? Color(hex: "22c55e") : Color(hex: "2a2a34")
     }
 }
 
