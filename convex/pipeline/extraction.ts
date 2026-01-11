@@ -82,7 +82,18 @@ Return a JSON object in this EXACT format:
   },
   
   "confidence": 0.85,
-  "searchSuggestions": ["search query 1", "search query 2", "search query 3"]
+  "searchSuggestions": ["search query 1", "search query 2", "search query 3"],
+  
+  "clarificationNeeded": {
+    "field": "category",
+    "question": "What type of item is this?",
+    "options": [
+      {"value": "fleece_jacket", "label": "Fleece Jacket"},
+      {"value": "down_jacket", "label": "Down Jacket"},
+      {"value": "vest", "label": "Vest"}
+    ],
+    "reason": "Cannot determine jacket type from image"
+  }
 }
 
 RULES:
@@ -100,7 +111,23 @@ RULES:
 
 3. Set confidence between 0 and 1 based on image clarity and certainty of analysis.
 
-4. Return ONLY valid JSON, no markdown formatting or explanation.`;
+4. Return ONLY valid JSON, no markdown formatting or explanation.
+
+5. CLARIFICATION REQUESTS - Include "clarificationNeeded" ONLY when:
+   - Confidence is below 0.7 for a critical field (category, brand)
+   - You truly cannot determine between 2-4 specific options
+   - User input would significantly improve the analysis
+   
+   DO NOT ask for clarification if you can make a reasonable guess.
+   Only ONE clarification per scan - pick the MOST impactful unclear field.
+   
+   Good clarification examples:
+   - "What type of bag is this?" [Tote Bag, Messenger Bag, Backpack, Duffel]
+   - "Who is this item for?" [Men's, Women's, Unisex]
+   - "When was this made?" [Vintage (pre-1990), 1990s-2000s, Modern (2010+)]
+   
+   Always include "Other/Skip" as the last option:
+   {"value": "skip", "label": "Not sure / Skip"}`;
 
 // Result type that includes token usage
 interface AnalysisResultWithTokens {
@@ -332,6 +359,30 @@ function normalizeAnalysisResult(raw: Record<string, unknown>): ImageAnalysisRes
       repairNeeded: typeof condition.repairNeeded === "boolean" ? condition.repairNeeded : undefined,
       notes: Array.isArray(condition.notes) ? condition.notes : undefined,
     };
+  }
+
+  // Add clarification request if present and valid
+  if (raw.clarificationNeeded && typeof raw.clarificationNeeded === "object") {
+    const clarification = raw.clarificationNeeded as Record<string, unknown>;
+    if (
+      typeof clarification.field === "string" &&
+      typeof clarification.question === "string" &&
+      Array.isArray(clarification.options) &&
+      clarification.options.length >= 2
+    ) {
+      result.clarificationNeeded = {
+        field: clarification.field,
+        question: clarification.question,
+        options: clarification.options.map((opt: unknown) => {
+          const o = opt as Record<string, unknown>;
+          return {
+            value: String(o.value || ""),
+            label: String(o.label || o.value || ""),
+          };
+        }),
+        reason: typeof clarification.reason === "string" ? clarification.reason : "Unclear from image",
+      };
+    }
   }
 
   return result;

@@ -2,7 +2,9 @@ import SwiftUI
 
 struct ScanDetailView: View {
     let scan: Scan
+    @EnvironmentObject private var convexService: ConvexService
     @Environment(\.dismiss) private var dismiss
+    @State private var isSubmittingClarification = false
     
     var body: some View {
         NavigationStack {
@@ -23,6 +25,12 @@ struct ScanDetailView: View {
                     }
                     .cornerRadius(16)
                     .padding(.horizontal)
+                    
+                    // Clarification Card (when awaiting user input)
+                    if scan.status.needsClarification,
+                       let clarification = scan.extractedData?.clarificationNeeded {
+                        clarificationCard(clarification: clarification)
+                    }
                     
                     // Processing Progress (when not complete)
                     if scan.status.isProcessing {
@@ -71,6 +79,97 @@ struct ScanDetailView: View {
                     .foregroundColor(Color(hex: "6366f1"))
                 }
             }
+        }
+    }
+    
+    // MARK: - Clarification Card
+    
+    private func clarificationCard(clarification: ClarificationRequest) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "questionmark.circle.fill")
+                    .foregroundColor(Color(hex: "f59e0b"))
+                
+                Text("Quick Question")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(hex: "f59e0b"))
+            }
+            
+            Text(clarification.question)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white)
+            
+            if isSubmittingClarification {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .tint(Color(hex: "6366f1"))
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+            } else {
+                // Option buttons
+                VStack(spacing: 8) {
+                    ForEach(clarification.options) { option in
+                        Button {
+                            submitClarification(field: clarification.field, value: option.value)
+                        } label: {
+                            HStack {
+                                Text(option.label)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color(hex: "8888a0"))
+                            }
+                            .padding(12)
+                            .background(Color(hex: "1a1a24"))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    // Skip button
+                    Button {
+                        submitClarification(field: clarification.field, value: "skip")
+                    } label: {
+                        Text("Not sure • Skip")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(Color(hex: "8888a0"))
+                            .padding(.vertical, 8)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(Color(hex: "12121a"))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(hex: "f59e0b").opacity(0.3), lineWidth: 1)
+        )
+        .cornerRadius(16)
+        .padding(.horizontal)
+    }
+    
+    private func submitClarification(field: String, value: String) {
+        isSubmittingClarification = true
+        
+        Task {
+            do {
+                // Apply the clarification
+                try await convexService.applyClarification(scanId: scan.id, field: field, value: value)
+                
+                // Resume the pipeline
+                try await convexService.resumePipeline(scanId: scan.id)
+                
+                // Refresh scans to get updated status
+                try await convexService.fetchUserScans()
+            } catch {
+                print("Clarification error: \(error)")
+            }
+            
+            isSubmittingClarification = false
         }
     }
     

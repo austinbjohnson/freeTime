@@ -228,8 +228,17 @@ struct ScanCardView: View {
                         StatusBadge(status: scan.status)
                     }
                     
-                    // Style number or processing stage
-                    if scan.status.isProcessing {
+                    // Style number or processing stage or clarification
+                    if scan.status.needsClarification {
+                        HStack(spacing: 6) {
+                            Image(systemName: "questionmark.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "f59e0b"))
+                            Text("Tap to answer question")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(hex: "f59e0b"))
+                        }
+                    } else if scan.status.isProcessing {
                         CompactProgressBar(status: scan.status)
                     } else if let styleNumber = scan.extractedData?.styleNumber {
                         Text("Style: \(styleNumber)")
@@ -356,6 +365,9 @@ struct StatusBadge: View {
             if status.isProcessing {
                 ProgressView()
                     .scaleEffect(0.6)
+            } else if status.needsClarification {
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.system(size: 10))
             }
             
             Text(status.displayName)
@@ -374,6 +386,8 @@ struct StatusBadge: View {
             return Color(hex: "22c55e")
         case .failed:
             return Color(hex: "ef4444")
+        case .awaitingClarification:
+            return Color(hex: "f59e0b")
         case .uploaded, .extracting, .researching, .refining:
             return Color(hex: "6366f1")
         }

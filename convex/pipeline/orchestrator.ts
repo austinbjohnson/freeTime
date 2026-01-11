@@ -54,7 +54,26 @@ export const processScan = action({
       brand: extractedData.brand,
       imageTypes: extractedData.imageTypes,
       garmentStyle: extractedData.garmentAnalysis?.style,
+      clarificationNeeded: extractedData.clarificationNeeded ? extractedData.clarificationNeeded.field : null,
     });
+
+    // Check if clarification is needed - pause pipeline if so
+    if (extractedData.clarificationNeeded) {
+      console.log("[Pipeline] Clarification needed, pausing pipeline");
+      console.log(`[Pipeline] Question: ${extractedData.clarificationNeeded.question}`);
+      
+      await ctx.runMutation(internal.scans.setAwaitingClarificationInternal, {
+        scanId: args.scanId,
+        extractedData,
+      });
+      
+      // Return early - pipeline will resume when user answers
+      return {
+        extractedData,
+        awaitingClarification: true,
+        clarificationNeeded: extractedData.clarificationNeeded,
+      };
+    }
 
     // Stage 2: Research
     console.log("[Pipeline] Stage 2: Research");
@@ -172,7 +191,26 @@ export const processMultiImageScan = action({
       garmentStyle: extractedData.garmentAnalysis?.style,
       conditionGrade: extractedData.conditionAssessment?.overallGrade,
       searchSuggestions: extractedData.searchSuggestions.slice(0, 3),
+      clarificationNeeded: extractedData.clarificationNeeded ? extractedData.clarificationNeeded.field : null,
     });
+
+    // Check if clarification is needed - pause pipeline if so
+    if (extractedData.clarificationNeeded) {
+      console.log("[Pipeline] Clarification needed, pausing pipeline");
+      console.log(`[Pipeline] Question: ${extractedData.clarificationNeeded.question}`);
+      
+      await ctx.runMutation(internal.scans.setAwaitingClarificationInternal, {
+        scanId: args.scanId,
+        extractedData,
+      });
+      
+      // Return early - pipeline will resume when user answers
+      return {
+        extractedData,
+        awaitingClarification: true,
+        clarificationNeeded: extractedData.clarificationNeeded,
+      };
+    }
 
     // Update scan with merged extracted data
     await ctx.runMutation(internal.scans.updateExtractedDataInternal, {
@@ -228,6 +266,83 @@ export const processMultiImageScan = action({
       researchResults,
       refinedFindings,
       imageAnalyses, // Include individual analyses for debugging
+    };
+  },
+});
+
+// Resume pipeline after clarification is provided
+export const resumeAfterClarification = action({
+  args: {
+    scanId: v.id("scans"),
+    refinementProvider: v.optional(
+      v.union(v.literal("openai"), v.literal("anthropic"), v.literal("stats"))
+    ),
+  },
+  handler: async (ctx, args) => {
+    console.log(`[Pipeline] Resuming after clarification for scan ${args.scanId}`);
+
+    // Get the scan with updated extracted data
+    const scan = await ctx.runQuery(api.scans.getScan, { scanId: args.scanId });
+    if (!scan) {
+      throw new Error("Scan not found");
+    }
+
+    const extractedData = scan.extractedData as ExtractedData;
+    if (!extractedData) {
+      throw new Error("No extracted data found for scan");
+    }
+
+    console.log("[Pipeline] Resuming with enriched data:", {
+      brand: extractedData.brand,
+      category: extractedData.garmentAnalysis?.category,
+    });
+
+    // Stage 2: Research
+    console.log("[Pipeline] Stage 2: Research (resumed)");
+    const researchResults: ResearchResults = await ctx.runAction(
+      api.pipeline.research.researchItem,
+      {
+        scanId: args.scanId,
+        extractedData,
+      }
+    );
+
+    console.log(
+      `[Pipeline] Research complete: ${researchResults.listings.length} listings found`
+    );
+
+    // Stage 3: Refinement
+    console.log("[Pipeline] Stage 3: Refinement (resumed)");
+    const refinedFindings: RefinedFindings = await ctx.runAction(
+      api.pipeline.refinement.refineFindings,
+      {
+        scanId: args.scanId,
+        extractedData,
+        researchResults,
+        provider: args.refinementProvider,
+      }
+    );
+
+    console.log(
+      `[Pipeline] Refinement complete: $${refinedFindings.suggestedPriceRange.low} - $${refinedFindings.suggestedPriceRange.high}`
+    );
+
+    // Record anonymized analytics (fire and forget)
+    try {
+      await ctx.runMutation(internal.analytics.recordScanAnalytics, {
+        scanId: args.scanId,
+      });
+      console.log("[Pipeline] Analytics recorded");
+    } catch (error) {
+      console.error("[Pipeline] Analytics recording failed:", error);
+    }
+
+    console.log(`[Pipeline] Pipeline resumed and complete for scan ${args.scanId}`);
+
+    return {
+      extractedData,
+      researchResults,
+      refinedFindings,
     };
   },
 });

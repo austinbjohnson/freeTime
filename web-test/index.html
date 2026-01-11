@@ -647,6 +647,16 @@
             </div>
           </div>
           
+          <!-- Clarification Card (when needed) -->
+          <div class="result-section" id="clarification-section" style="display: none; border: 1px solid var(--warning);">
+            <h3 style="color: var(--warning);">🤔 Quick Question</h3>
+            <div class="result-content">
+              <p id="clarification-question" style="font-size: 1rem; margin-bottom: 1rem;"></p>
+              <div id="clarification-options" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+              <button id="skip-clarification-btn" style="background: var(--bg-tertiary); margin-top: 0.75rem;">Not sure • Skip</button>
+            </div>
+          </div>
+          
           <!-- Raw Data (Collapsed) -->
           <div class="result-section">
             <h3 class="collapsible-header collapsed" onclick="toggleCollapsible(this)">Raw Extracted Data</h3>
@@ -834,10 +844,49 @@
         logStage(1, 'EXTRACTION');
         log('Analyzing image with AI vision...');
         
-        const pipelineResult = await convex.action("pipeline/orchestrator:processScan", {
+        let pipelineResult = await convex.action("pipeline/orchestrator:processScan", {
           scanId: scanId,
           imageStorageId: storageId
         });
+        
+        // Check if clarification is needed
+        if (pipelineResult.awaitingClarification && pipelineResult.clarificationNeeded) {
+          log('Pipeline paused - clarification needed', 'warning');
+          logData('Field', pipelineResult.clarificationNeeded.field);
+          logData('Question', pipelineResult.clarificationNeeded.question);
+          
+          // Show clarification UI and wait for response
+          const clarificationAnswer = await showClarificationUI(
+            scanId,
+            pipelineResult.clarificationNeeded
+          );
+          
+          if (clarificationAnswer) {
+            log(`User answered: ${clarificationAnswer}`, 'info');
+            
+            // Resume pipeline
+            logStage(2, 'RESEARCH (resumed)');
+            log('Resuming pipeline after clarification...');
+            pipelineResult = await convex.action("pipeline/orchestrator:resumeAfterClarification", {
+              scanId: scanId
+            });
+          } else {
+            log('User skipped clarification', 'info');
+            
+            // Resume pipeline with skip
+            await convex.mutation("scans:applyClarification", {
+              scanId: scanId,
+              field: pipelineResult.clarificationNeeded.field,
+              value: "skip"
+            });
+            
+            logStage(2, 'RESEARCH (resumed)');
+            log('Resuming pipeline after skip...');
+            pipelineResult = await convex.action("pipeline/orchestrator:resumeAfterClarification", {
+              scanId: scanId
+            });
+          }
+        }
         
         // Log extraction results
         if (pipelineResult.extractedData) {
@@ -1036,6 +1085,45 @@
       const content = header.nextElementSibling;
       content.classList.toggle('collapsed');
     };
+    
+    // Clarification UI
+    function showClarificationUI(scanId, clarification) {
+      return new Promise((resolve) => {
+        results.style.display = 'block';
+        const section = document.getElementById('clarification-section');
+        const question = document.getElementById('clarification-question');
+        const options = document.getElementById('clarification-options');
+        const skipBtn = document.getElementById('skip-clarification-btn');
+        
+        section.style.display = 'block';
+        question.textContent = clarification.question;
+        options.innerHTML = '';
+        
+        clarification.options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.style.background = 'var(--bg-tertiary)';
+          btn.textContent = opt.label;
+          btn.addEventListener('click', async () => {
+            section.style.display = 'none';
+            
+            // Apply clarification
+            await convex.mutation("scans:applyClarification", {
+              scanId: scanId,
+              field: clarification.field,
+              value: opt.value
+            });
+            
+            resolve(opt.value);
+          });
+          options.appendChild(btn);
+        });
+        
+        skipBtn.onclick = () => {
+          section.style.display = 'none';
+          resolve(null);
+        };
+      });
+    }
     
     // Metrics Dashboard Functions
     async function loadMetrics() {

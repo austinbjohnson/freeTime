@@ -22,6 +22,7 @@ export default defineSchema({
     status: v.union(
       v.literal("uploaded"),
       v.literal("extracting"),
+      v.literal("awaiting_clarification"),
       v.literal("researching"),
       v.literal("refining"),
       v.literal("completed"),
