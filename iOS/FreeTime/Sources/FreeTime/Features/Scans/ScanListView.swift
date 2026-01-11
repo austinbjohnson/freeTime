@@ -197,58 +197,141 @@ struct ScanCardView: View {
     let scan: Scan
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Thumbnail
-            AsyncImage(url: URL(string: scan.thumbnailUrl ?? scan.imageUrl ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle()
-                    .fill(Color(hex: "1a1a24"))
-                    .overlay {
-                        Image(systemName: "photo")
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
+                // Thumbnail
+                AsyncImage(url: URL(string: scan.thumbnailUrl ?? scan.imageUrl ?? "")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(Color(hex: "1a1a24"))
+                        .overlay {
+                            Image(systemName: "photo")
+                                .foregroundColor(Color(hex: "8888a0"))
+                        }
+                }
+                .frame(width: 80, height: 80)
+                .cornerRadius(12)
+                
+                // Content
+                VStack(alignment: .leading, spacing: 8) {
+                    // Brand and status
+                    HStack {
+                        Text(scan.extractedData?.brand ?? (scan.status.isProcessing ? "Processing..." : "Unknown Brand"))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        StatusBadge(status: scan.status)
+                    }
+                    
+                    // Style number or processing stage
+                    if scan.status.isProcessing {
+                        CompactProgressBar(status: scan.status)
+                    } else if let styleNumber = scan.extractedData?.styleNumber {
+                        Text("Style: \(styleNumber)")
+                            .font(.system(size: 14))
                             .foregroundColor(Color(hex: "8888a0"))
                     }
-            }
-            .frame(width: 80, height: 80)
-            .cornerRadius(12)
-            
-            // Content
-            VStack(alignment: .leading, spacing: 8) {
-                // Brand and status
-                HStack {
-                    Text(scan.extractedData?.brand ?? "Unknown Brand")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
                     
-                    Spacer()
-                    
-                    StatusBadge(status: scan.status)
-                }
-                
-                // Style number
-                if let styleNumber = scan.extractedData?.styleNumber {
-                    Text("Style: \(styleNumber)")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "8888a0"))
-                }
-                
-                // Price range (if available)
-                if let findings = scan.refinedFindings {
-                    HStack(spacing: 4) {
-                        Text(findings.suggestedPriceRange.formattedRange)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(Color(hex: "22c55e"))
-                        
-                        Text(findings.marketActivity.emoji)
+                    // Price range (if available)
+                    if let findings = scan.refinedFindings {
+                        HStack(spacing: 4) {
+                            Text(findings.suggestedPriceRange.formattedRange)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(Color(hex: "22c55e"))
+                            
+                            Text(findings.marketActivity.emoji)
+                        }
                     }
                 }
             }
+            .padding(16)
         }
-        .padding(16)
         .background(Color(hex: "12121a"))
         .cornerRadius(16)
+    }
+}
+
+// MARK: - Compact Progress Bar
+
+struct CompactProgressBar: View {
+    let status: ScanStatus
+    
+    private var progress: CGFloat {
+        switch status {
+        case .uploaded: return 0.0
+        case .extracting: return 0.33
+        case .researching: return 0.66
+        case .refining: return 0.9
+        case .completed: return 1.0
+        case .failed: return 0.0
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    // Background
+                    Capsule()
+                        .fill(Color(hex: "1a1a24"))
+                        .frame(height: 4)
+                    
+                    // Progress
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "6366f1"), Color(hex: "22c55e")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * progress, height: 4)
+                        .animation(.easeInOut(duration: 0.3), value: progress)
+                }
+            }
+            .frame(height: 4)
+            
+            HStack(spacing: 4) {
+                Text("1")
+                    .foregroundColor(status == .extracting ? Color(hex: "6366f1") : Color(hex: "22c55e"))
+                Text("→")
+                    .foregroundColor(Color(hex: "8888a0"))
+                Text("2")
+                    .foregroundColor(statusColor(for: .researching))
+                Text("→")
+                    .foregroundColor(Color(hex: "8888a0"))
+                Text("3")
+                    .foregroundColor(statusColor(for: .refining))
+            }
+            .font(.system(size: 10, weight: .medium))
+        }
+    }
+    
+    private func statusColor(for stageStatus: ScanStatus) -> Color {
+        let currentIndex = stageIndex(status)
+        let stageIdx = stageIndex(stageStatus)
+        
+        if stageIdx < currentIndex {
+            return Color(hex: "22c55e") // Complete
+        } else if stageIdx == currentIndex {
+            return Color(hex: "6366f1") // Active
+        } else {
+            return Color(hex: "8888a0") // Pending
+        }
+    }
+    
+    private func stageIndex(_ s: ScanStatus) -> Int {
+        switch s {
+        case .extracting: return 0
+        case .researching: return 1
+        case .refining: return 2
+        default: return -1
+        }
     }
 }
 
@@ -282,6 +365,143 @@ struct StatusBadge: View {
             return Color(hex: "ef4444")
         case .uploaded, .extracting, .researching, .refining:
             return Color(hex: "6366f1")
+        }
+    }
+}
+
+// MARK: - Processing Progress View
+
+struct ProcessingProgressView: View {
+    let status: ScanStatus
+    
+    private let stages: [(status: ScanStatus, label: String, icon: String)] = [
+        (.extracting, "Reading", "doc.text.magnifyingglass"),
+        (.researching, "Searching", "globe"),
+        (.refining, "Analyzing", "chart.bar.doc.horizontal")
+    ]
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            // Progress steps
+            HStack(spacing: 0) {
+                ForEach(Array(stages.enumerated()), id: \.offset) { index, stage in
+                    // Step circle and label
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(fillColor(for: stage.status))
+                                .frame(width: 40, height: 40)
+                            
+                            if isActive(stage.status) {
+                                // Pulsing ring for active stage
+                                Circle()
+                                    .stroke(Color(hex: "6366f1"), lineWidth: 2)
+                                    .frame(width: 40, height: 40)
+                                    .scaleEffect(1.3)
+                                    .opacity(0.5)
+                                    .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: status)
+                            }
+                            
+                            if isComplete(stage.status) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                            } else {
+                                Image(systemName: stage.icon)
+                                    .font(.system(size: 16))
+                                    .foregroundColor(iconColor(for: stage.status))
+                            }
+                        }
+                        
+                        Text(stage.label)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(textColor(for: stage.status))
+                    }
+                    
+                    // Connector line (except after last)
+                    if index < stages.count - 1 {
+                        Rectangle()
+                            .fill(connectorColor(afterStage: stage.status))
+                            .frame(height: 2)
+                            .frame(maxWidth: .infinity)
+                            .padding(.bottom, 24) // Align with circles
+                    }
+                }
+            }
+            
+            // Current action description
+            Text(status.displayName)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Color(hex: "8888a0"))
+        }
+        .padding(20)
+        .background(Color(hex: "12121a"))
+        .cornerRadius(16)
+    }
+    
+    private func stageIndex(_ stageStatus: ScanStatus) -> Int {
+        switch stageStatus {
+        case .extracting: return 0
+        case .researching: return 1
+        case .refining: return 2
+        default: return -1
+        }
+    }
+    
+    private func currentIndex() -> Int {
+        stageIndex(status)
+    }
+    
+    private func isComplete(_ stageStatus: ScanStatus) -> Bool {
+        let current = currentIndex()
+        let stage = stageIndex(stageStatus)
+        return stage < current || status == .completed
+    }
+    
+    private func isActive(_ stageStatus: ScanStatus) -> Bool {
+        return stageStatus == status
+    }
+    
+    private func isPending(_ stageStatus: ScanStatus) -> Bool {
+        let current = currentIndex()
+        let stage = stageIndex(stageStatus)
+        return stage > current
+    }
+    
+    private func fillColor(for stageStatus: ScanStatus) -> Color {
+        if isComplete(stageStatus) {
+            return Color(hex: "22c55e")
+        } else if isActive(stageStatus) {
+            return Color(hex: "6366f1")
+        } else {
+            return Color(hex: "1a1a24")
+        }
+    }
+    
+    private func iconColor(for stageStatus: ScanStatus) -> Color {
+        if isActive(stageStatus) {
+            return .white
+        } else if isPending(stageStatus) {
+            return Color(hex: "8888a0")
+        }
+        return .white
+    }
+    
+    private func textColor(for stageStatus: ScanStatus) -> Color {
+        if isComplete(stageStatus) {
+            return Color(hex: "22c55e")
+        } else if isActive(stageStatus) {
+            return Color(hex: "6366f1")
+        } else {
+            return Color(hex: "8888a0")
+        }
+    }
+    
+    private func connectorColor(afterStage stageStatus: ScanStatus) -> Color {
+        if isComplete(stageStatus) {
+            return Color(hex: "22c55e")
+        } else {
+            return Color(hex: "1a1a24")
         }
     }
 }

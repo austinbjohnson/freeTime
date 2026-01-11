@@ -24,6 +24,12 @@ struct ScanDetailView: View {
                     .cornerRadius(16)
                     .padding(.horizontal)
                     
+                    // Processing Progress (when not complete)
+                    if scan.status.isProcessing {
+                        ProcessingProgressView(status: scan.status)
+                            .padding(.horizontal)
+                    }
+                    
                     // Price Range Card
                     if let findings = scan.refinedFindings {
                         priceCard(findings: findings)
