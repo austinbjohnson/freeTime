@@ -127,6 +127,11 @@ Each stage is isolated and can be swapped independently.
 - Use `api` for functions callable from clients
 - Actions calling other actions: use `internal.pipeline.extraction.analyzeImage`
 
+### Crypto & Native Node.js Modules
+- Native Node.js modules like `crypto` require `"use node"` at the top of the file
+- Since `"use node"` files can only export actions, use pure JavaScript alternatives when you need hash functions in mutation/query files
+- Example: Use djb2 or similar simple hash algorithms instead of `crypto.createHash()` (see `analytics.ts`)
+
 ## Image Processing
 
 ### Size Limits

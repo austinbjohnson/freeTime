@@ -86,6 +86,17 @@ export const processScan = action({
       `[Pipeline] Refinement complete: $${refinedFindings.suggestedPriceRange.low} - $${refinedFindings.suggestedPriceRange.high}`
     );
 
+    // Record anonymized analytics (fire and forget)
+    try {
+      await ctx.runMutation(internal.analytics.recordScanAnalytics, {
+        scanId: args.scanId,
+      });
+      console.log("[Pipeline] Analytics recorded");
+    } catch (error) {
+      // Don't fail the pipeline if analytics fails
+      console.error("[Pipeline] Analytics recording failed:", error);
+    }
+
     console.log(`[Pipeline] Processing complete for scan ${args.scanId}`);
 
     return {
@@ -198,6 +209,17 @@ export const processMultiImageScan = action({
     console.log(
       `[Pipeline] Refinement complete: $${refinedFindings.suggestedPriceRange.low} - $${refinedFindings.suggestedPriceRange.high}`
     );
+
+    // Record anonymized analytics (fire and forget)
+    try {
+      await ctx.runMutation(internal.analytics.recordScanAnalytics, {
+        scanId: args.scanId,
+      });
+      console.log("[Pipeline] Analytics recorded");
+    } catch (error) {
+      // Don't fail the pipeline if analytics fails
+      console.error("[Pipeline] Analytics recording failed:", error);
+    }
 
     console.log(`[Pipeline] Multi-image processing complete for scan ${args.scanId}`);
 

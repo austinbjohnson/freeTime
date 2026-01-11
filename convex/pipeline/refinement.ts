@@ -2,7 +2,7 @@
 
 import { v } from "convex/values";
 import { action } from "../_generated/server";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import type {
   ExtractedData,
   ResearchResults,
@@ -18,6 +18,20 @@ import {
   type TokenUsage,
   type AIProvider,
 } from "./utils";
+
+// Type for brand stats from analytics
+interface BrandStats {
+  brand: string;
+  sampleSize: number;
+  priceMin: number;
+  priceMax: number;
+  priceAvg: number;
+  priceMedian: number;
+  priceP25: number;
+  priceP75: number;
+  avgMarketActivity?: string;
+  avgDemandLevel?: string;
+}
 
 /**
  * Stage 3: AI Refinement
@@ -41,6 +55,8 @@ RESEARCH RESULTS:
 - Active Listings Found: {activeCount}
 - Sold Listings Found: {soldCount}
 - Listings: {listings}
+
+{historicalContext}
 
 Based on this information, provide a JSON response with:
 1. Suggested price range (low, high, recommended) in USD
@@ -87,7 +103,8 @@ interface RefinementResultWithTokens {
 // Refine using OpenAI (with retry)
 async function refineWithOpenAI(
   extractedData: ExtractedData,
-  researchResults: ResearchResults
+  researchResults: ResearchResults,
+  historicalContext: string = ""
 ): Promise<RefinementResultWithTokens> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
@@ -108,7 +125,8 @@ async function refineWithOpenAI(
         null,
         2
       )
-    );
+    )
+    .replace("{historicalContext}", historicalContext);
 
   return withRetry(async () => {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -150,7 +168,8 @@ async function refineWithOpenAI(
 // Refine using Anthropic (with retry)
 async function refineWithAnthropic(
   extractedData: ExtractedData,
-  researchResults: ResearchResults
+  researchResults: ResearchResults,
+  historicalContext: string = ""
 ): Promise<RefinementResultWithTokens> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
@@ -171,7 +190,8 @@ async function refineWithAnthropic(
         null,
         2
       )
-    );
+    )
+    .replace("{historicalContext}", historicalContext);
 
   return withRetry(async () => {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -307,6 +327,34 @@ export const refineFindings = action({
     let refinedFindings: RefinedFindings | null = null;
     let tokenUsage: TokenUsage | null = null;
     let primaryError: Error | null = null;
+    
+    // Query historical brand stats for context
+    let historicalContext = "";
+    if (extractedData.brand) {
+      try {
+        const brandStats = await ctx.runQuery(api.analytics.getBrandStats, {
+          brand: extractedData.brand,
+          category: extractedData.garmentAnalysis?.category,
+          conditionGrade: extractedData.conditionAssessment?.overallGrade,
+        }) as BrandStats | null;
+        
+        if (brandStats && brandStats.sampleSize >= 3) {
+          historicalContext = `HISTORICAL DATA (from ${brandStats.sampleSize} similar items):
+- Price Range: $${brandStats.priceMin.toFixed(0)} - $${brandStats.priceMax.toFixed(0)}
+- Average Price: $${brandStats.priceAvg.toFixed(0)}
+- Median Price: $${brandStats.priceMedian.toFixed(0)}
+- 25th-75th Percentile: $${brandStats.priceP25.toFixed(0)} - $${brandStats.priceP75.toFixed(0)}
+${brandStats.avgMarketActivity ? `- Typical Market Activity: ${brandStats.avgMarketActivity}` : ""}
+${brandStats.avgDemandLevel ? `- Typical Demand Level: ${brandStats.avgDemandLevel}` : ""}
+
+Consider this historical data when making your price recommendations.`;
+          console.log(`[Refinement] Found historical data for ${extractedData.brand}: ${brandStats.sampleSize} samples`);
+        }
+      } catch (error) {
+        // Don't fail if analytics query fails
+        console.log("[Refinement] Could not fetch brand stats:", error);
+      }
+    }
 
     // If stats requested, just do stats
     if (primaryProvider === "stats") {
@@ -334,9 +382,9 @@ export const refineFindings = action({
         console.log(`[Refinement] Trying ${primaryProvider}...`);
         let response: RefinementResultWithTokens;
         if (primaryProvider === "openai") {
-          response = await refineWithOpenAI(extractedData, researchResults);
+          response = await refineWithOpenAI(extractedData, researchResults, historicalContext);
         } else {
-          response = await refineWithAnthropic(extractedData, researchResults);
+          response = await refineWithAnthropic(extractedData, researchResults, historicalContext);
         }
         refinedFindings = response.result;
         tokenUsage = response.tokenUsage;
@@ -350,9 +398,9 @@ export const refineFindings = action({
         
         let response: RefinementResultWithTokens;
         if (fallbackProvider === "openai") {
-          response = await refineWithOpenAI(extractedData, researchResults);
+          response = await refineWithOpenAI(extractedData, researchResults, historicalContext);
         } else {
-          response = await refineWithAnthropic(extractedData, researchResults);
+          response = await refineWithAnthropic(extractedData, researchResults, historicalContext);
         }
         refinedFindings = response.result;
         tokenUsage = response.tokenUsage;

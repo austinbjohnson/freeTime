@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as analytics from "../analytics.js";
 import type * as brandSeedData from "../brandSeedData.js";
 import type * as brandSeeder from "../brandSeeder.js";
 import type * as brands from "../brands.js";
@@ -31,6 +32,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  analytics: typeof analytics;
   brandSeedData: typeof brandSeedData;
   brandSeeder: typeof brandSeeder;
   brands: typeof brands;
