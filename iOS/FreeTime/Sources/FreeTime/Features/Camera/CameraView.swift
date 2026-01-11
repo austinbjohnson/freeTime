@@ -164,20 +164,28 @@ struct CameraView: View {
     
     private var controlsView: some View {
         VStack(spacing: 16) {
-            // Processing indicator
+            // Processing indicator with stage stepper
             if viewModel.isProcessing {
-                HStack(spacing: 12) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "6366f1")))
+                VStack(spacing: 12) {
+                    // Stage stepper
+                    CameraProcessingStages(currentStage: viewModel.processingStage)
                     
-                    Text(viewModel.processingStatus)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(Color(hex: "8888a0"))
+                    // Status text
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "6366f1")))
+                            .scaleEffect(0.8)
+                        
+                        Text(viewModel.processingStatus)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(Color(hex: "8888a0"))
+                    }
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, 16)
                 .padding(.horizontal, 20)
-                .background(Color(hex: "1a1a24"))
-                .cornerRadius(20)
+                .background(Color(hex: "12121a"))
+                .cornerRadius(16)
+                .padding(.horizontal)
             }
             
             // Hint text
@@ -318,6 +326,130 @@ class PreviewView: UIView {
     }
 }
 
+// MARK: - Processing Stage Enum
+
+enum ProcessingStage: Int, CaseIterable {
+    case uploading = 0
+    case extracting = 1
+    case researching = 2
+    case refining = 3
+    case complete = 4
+    
+    var label: String {
+        switch self {
+        case .uploading: return "Upload"
+        case .extracting: return "Reading"
+        case .researching: return "Searching"
+        case .refining: return "Analyzing"
+        case .complete: return "Done"
+        }
+    }
+    
+    var icon: String {
+        switch self {
+        case .uploading: return "arrow.up.circle"
+        case .extracting: return "doc.text.magnifyingglass"
+        case .researching: return "globe"
+        case .refining: return "chart.bar.doc.horizontal"
+        case .complete: return "checkmark.circle"
+        }
+    }
+}
+
+// MARK: - Camera Processing Stages View
+
+struct CameraProcessingStages: View {
+    let currentStage: ProcessingStage
+    
+    private let stages: [ProcessingStage] = [.uploading, .extracting, .researching, .refining]
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(stages.enumerated()), id: \.element) { index, stage in
+                // Stage circle
+                VStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .fill(fillColor(for: stage))
+                            .frame(width: 32, height: 32)
+                        
+                        if isComplete(stage) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        } else {
+                            Image(systemName: stage.icon)
+                                .font(.system(size: 12))
+                                .foregroundColor(iconColor(for: stage))
+                        }
+                        
+                        // Pulsing ring for active
+                        if isActive(stage) {
+                            Circle()
+                                .stroke(Color(hex: "6366f1").opacity(0.5), lineWidth: 2)
+                                .frame(width: 32, height: 32)
+                                .scaleEffect(1.4)
+                        }
+                    }
+                    
+                    Text(stage.label)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(textColor(for: stage))
+                }
+                
+                // Connector line
+                if index < stages.count - 1 {
+                    Rectangle()
+                        .fill(connectorColor(afterStage: stage))
+                        .frame(height: 2)
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 20)
+                }
+            }
+        }
+    }
+    
+    private func isComplete(_ stage: ProcessingStage) -> Bool {
+        stage.rawValue < currentStage.rawValue
+    }
+    
+    private func isActive(_ stage: ProcessingStage) -> Bool {
+        stage == currentStage
+    }
+    
+    private func fillColor(for stage: ProcessingStage) -> Color {
+        if isComplete(stage) {
+            return Color(hex: "22c55e")
+        } else if isActive(stage) {
+            return Color(hex: "6366f1")
+        } else {
+            return Color(hex: "1a1a24")
+        }
+    }
+    
+    private func iconColor(for stage: ProcessingStage) -> Color {
+        if isActive(stage) {
+            return .white
+        } else {
+            return Color(hex: "8888a0")
+        }
+    }
+    
+    private func textColor(for stage: ProcessingStage) -> Color {
+        if isComplete(stage) {
+            return Color(hex: "22c55e")
+        } else if isActive(stage) {
+            return Color(hex: "6366f1")
+        } else {
+            return Color(hex: "8888a0")
+        }
+    }
+    
+    private func connectorColor(afterStage stage: ProcessingStage) -> Color {
+        isComplete(stage) ? Color(hex: "22c55e") : Color(hex: "1a1a24")
+    }
+}
+
 // MARK: - Captured Image Model
 
 struct CapturedImage: Identifiable {
@@ -350,6 +482,7 @@ class CameraViewModel: NSObject, ObservableObject {
     @Published var hasPermission = false
     @Published var isProcessing = false
     @Published var processingStatus = ""
+    @Published var processingStage: ProcessingStage = .uploading
     @Published var isFlashOn = false
     @Published var showError = false
     @Published var errorMessage: String?
@@ -489,6 +622,7 @@ class CameraViewModel: NSObject, ObservableObject {
         }
         
         isProcessing = true
+        processingStage = .uploading
         processingStatus = "Preparing images..."
         
         do {
@@ -498,14 +632,14 @@ class CameraViewModel: NSObject, ObservableObject {
             
             // Step 1: Analyze and upload each image
             for (index, captured) in capturedImages.enumerated() {
-                processingStatus = "Analyzing image \(index + 1)/\(capturedImages.count)..."
+                processingStatus = "Reading image \(index + 1)/\(capturedImages.count)..."
                 
                 // On-device Vision analysis
                 let tagAnalysis = try await visionService.analyzeTag(image: captured.image)
                 allHints.append(contentsOf: tagAnalysis.allHints)
                 
                 // Upload image
-                processingStatus = "Uploading image \(index + 1)/\(capturedImages.count)..."
+                processingStatus = "Uploading \(index + 1)/\(capturedImages.count)..."
                 guard let imageData = captured.image.jpegData(compressionQuality: 0.8) else {
                     throw NSError(domain: "Camera", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to compress image \(index + 1)"])
                 }
@@ -515,19 +649,44 @@ class CameraViewModel: NSObject, ObservableObject {
                 print("[Camera] Uploaded image \(index + 1): \(storageId)")
             }
             
-            // Step 2: Create scan record
-            processingStatus = "Creating scan..."
+            // Step 2: Create scan and start extraction
+            processingStage = .extracting
+            processingStatus = "AI reading tags..."
             let scanId = try await convexService.createScan(imageStorageId: storageIds[0])
             print("[Camera] Created scan: \(scanId)")
             
             // Step 3: Process with multi-image pipeline
-            processingStatus = "Processing with AI..."
-            try await convexService.processMultiImageScan(
-                scanId: scanId,
-                imageStorageIds: storageIds,
-                onDeviceHints: allHints.isEmpty ? nil : Array(Set(allHints)) // Dedupe hints
-            )
+            // Note: The pipeline internally goes through extraction → research → refinement
+            // We'll update the stage based on typical timing since we can't get real-time updates here
             
+            // Start the pipeline (this blocks until complete)
+            let processingTask = Task {
+                try await convexService.processMultiImageScan(
+                    scanId: scanId,
+                    imageStorageIds: storageIds,
+                    onDeviceHints: allHints.isEmpty ? nil : Array(Set(allHints))
+                )
+            }
+            
+            // Simulate stage progression while waiting
+            // Extraction typically takes 3-8 seconds per image
+            try await Task.sleep(nanoseconds: UInt64(capturedImages.count * 3) * 1_000_000_000)
+            if !processingTask.isCancelled {
+                processingStage = .researching
+                processingStatus = "Searching market data..."
+            }
+            
+            // Research typically takes 5-15 seconds
+            try await Task.sleep(nanoseconds: 8_000_000_000)
+            if !processingTask.isCancelled {
+                processingStage = .refining
+                processingStatus = "Analyzing prices..."
+            }
+            
+            // Wait for actual completion
+            try await processingTask.value
+            
+            processingStage = .complete
             processingStatus = "Complete!"
             print("[Camera] Multi-image processing complete!")
             
