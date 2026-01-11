@@ -9,6 +9,8 @@ class ConvexService: ObservableObject {
     
     private let baseURL: URL
     private let session: URLSession
+    private var realtimeClient: ConvexRealtimeClient?
+    private var realtimeUserId: String?
     
     // MARK: - Published State
     
@@ -56,6 +58,7 @@ class ConvexService: ObservableObject {
                 let userData = try JSONSerialization.data(withJSONObject: user)
                 let decodedUser = try JSONDecoder().decode(User.self, from: userData)
                 self.currentUser = decodedUser
+                startRealtimeScans(userId: decodedUser.id)
                 return decodedUser
             }
         }
@@ -167,6 +170,56 @@ class ConvexService: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .millisecondsSince1970
             self.scans = try decoder.decode([Scan].self, from: data)
+        }
+    }
+
+    // MARK: - Real-time Subscriptions
+
+    private func startRealtimeScans(userId: String) {
+        if realtimeUserId == userId {
+            return
+        }
+        stopRealtimeScans()
+        realtimeUserId = userId
+        let client = ConvexRealtimeClient(baseURL: baseURL)
+        client.subscribe(
+            path: "scans:getUserScans",
+            args: ["userId": userId],
+            onUpdate: { [weak self] value in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.applyScanUpdates(value)
+                }
+            },
+            onError: { [weak self] message in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.error = .serverError(message)
+                }
+            }
+        )
+        realtimeClient = client
+        client.connect()
+    }
+
+    private func stopRealtimeScans() {
+        realtimeClient?.disconnect()
+        realtimeClient = nil
+        realtimeUserId = nil
+    }
+
+    private func applyScanUpdates(_ value: Any?) {
+        guard let scansArray = value as? [[String: Any]] else {
+            scans = []
+            return
+        }
+        do {
+            let data = try JSONSerialization.data(withJSONObject: scansArray)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .millisecondsSince1970
+            scans = try decoder.decode([Scan].self, from: data)
+        } catch {
+            self.error = .invalidResponse
         }
     }
     
@@ -287,4 +340,3 @@ enum ConvexError: LocalizedError {
         }
     }
 }
-

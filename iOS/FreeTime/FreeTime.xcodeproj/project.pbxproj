@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00074F68F778AF07545174D3 /* FreeTimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6197526E5D4553FA4A734E /* FreeTimeApp.swift */; };
 		018C790C58BDDB88C19F3803 /* ConvexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C910863456D9CBC2C4CF6E6E /* ConvexService.swift */; };
+		A4B5C6D7E8F90123456789AB /* ConvexRealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90123456789AC /* ConvexRealtimeClient.swift */; };
 		2C7983986A7988D20CF4AF9A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */; };
 		4094B7C0077165F358DDD67B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */; };
 		576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4404FD99B4D6E383A2063FDD /* MainTabView.swift */; };
@@ -38,6 +39,7 @@
 		9163F1C7563F75C94CC6F886 /* FreeTime.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FreeTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6E401DC467440318E6A2B87 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A4B5C6D7E8F90123456789AC /* ConvexRealtimeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexRealtimeClient.swift; sourceTree = "<group>"; };
 		C910863456D9CBC2C4CF6E6E /* ConvexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexService.swift; sourceTree = "<group>"; };
 		CC6197526E5D4553FA4A734E /* FreeTimeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeTimeApp.swift; sourceTree = "<group>"; };
 		DC98318972295F8445DAE5E4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -126,6 +128,7 @@
 			isa = PBXGroup;
 			children = (
 				A6E401DC467440318E6A2B87 /* AuthService.swift */,
+				A4B5C6D7E8F90123456789AC /* ConvexRealtimeClient.swift */,
 				C910863456D9CBC2C4CF6E6E /* ConvexService.swift */,
 				8D1F560BF5BC286F3D2EC3B5 /* ImageCacheService.swift */,
 				397872C61E4D084B9B91C503 /* VisionService.swift */,
@@ -247,6 +250,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */,
+				A4B5C6D7E8F90123456789AB /* ConvexRealtimeClient.swift in Sources */,
 				7CAED787D5FEB22D5FB43A8C /* CachedAsyncImage.swift in Sources */,
 				FDCB1A94BE17ED02DD5A98C4 /* CameraView.swift in Sources */,
 				C5FB78A6368DA628AD313F04 /* ClarificationView.swift in Sources */,
