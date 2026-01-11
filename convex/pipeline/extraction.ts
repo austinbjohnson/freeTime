@@ -63,7 +63,14 @@ Return a JSON object in this EXACT format:
   
   "garmentAnalysis": {
     "category": "sweater/jacket/pants/dress/shirt/coat/bag/backpack/etc.",
-    "style": "Cowichan/varsity/bomber/cardigan/pullover/tote/messenger/etc.",
+    "style": "For bags, identify the SPECIFIC type based on handle/strap configuration:
+      - tote bag = TWO parallel handles at top, open top, carried by hand or over shoulder
+      - messenger bag = single CROSS-BODY strap, typically has flap closure
+      - backpack = TWO shoulder straps, worn on back
+      - crossbody bag = single diagonal strap, small
+      - shoulder bag = single strap, carried on one shoulder
+      - duffel bag = cylindrical, two handles + optional shoulder strap
+      For clothing: Cowichan/varsity/bomber/cardigan/pullover/etc.",
     "estimatedEra": "vintage/1980s/modern/etc.",
     "colors": ["cream", "brown", "navy"],
     "patterns": ["geometric", "stripes", "floral", "solid"],
