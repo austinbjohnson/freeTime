@@ -4,6 +4,7 @@ import SwiftUI
 struct FreeTimeApp: App {
     @StateObject private var authService = AuthService()
     @StateObject private var convexService = ConvexService()
+    @StateObject private var navigationState = AppNavigationState()
     
     init() {
         // Configure URLCache for system-level HTTP caching
@@ -20,6 +21,7 @@ struct FreeTimeApp: App {
             ContentView()
                 .environmentObject(authService)
                 .environmentObject(convexService)
+                .environmentObject(navigationState)
         }
     }
 }
@@ -37,4 +39,3 @@ struct ContentView: View {
         }
     }
 }
-

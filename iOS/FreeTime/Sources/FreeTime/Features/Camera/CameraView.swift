@@ -4,9 +4,14 @@ import PhotosUI
 
 struct CameraView: View {
     @EnvironmentObject var convexService: ConvexService
+    @EnvironmentObject var navigationState: AppNavigationState
     @StateObject private var viewModel = CameraViewModel()
     @State private var showingImagePicker = false
     @State private var selectedItem: PhotosPickerItem?
+    @State private var submissionToast: SubmissionToast?
+    @State private var isToastVisible = false
+    @State private var submissionAnimation: SubmissionAnimation?
+    @State private var submissionAnimationProgress: CGFloat = 0
     
     var body: some View {
         ZStack {
@@ -77,10 +82,18 @@ struct CameraView: View {
                 // Bottom Controls
                 controlsView
             }
+            
+            submissionAnimationOverlay
+            submissionToastOverlay
         }
         .onAppear {
             viewModel.checkPermissions()
             viewModel.convexService = convexService
+        }
+        .onChange(of: viewModel.latestSubmittedScanId) { _, newId in
+            guard let newId else { return }
+            showSubmissionToast(for: newId)
+            viewModel.latestSubmittedScanId = nil
         }
         .onChange(of: selectedItem) { _, newItem in
             Task {
@@ -163,38 +176,10 @@ struct CameraView: View {
     
     private var controlsView: some View {
         VStack(spacing: 16) {
-            // Processing indicator with stage stepper
-            if viewModel.isProcessing {
-                VStack(spacing: 12) {
-                    // Stage stepper
-                    CameraProcessingStages(currentStage: viewModel.processingStage)
-                    
-                    // Status text
-                    HStack(spacing: 8) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "6366f1")))
-                            .scaleEffect(0.8)
-                        
-                        Text(viewModel.processingStatus)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(hex: "8888a0"))
-                    }
-                }
-                .padding(.vertical, 16)
-                .padding(.horizontal, 20)
-                .background(Color(hex: "12121a"))
-                .cornerRadius(16)
-                .padding(.horizontal)
-            }
-            
             // Hint text
-            if !viewModel.isProcessing {
-                Text(viewModel.capturedImages.isEmpty 
-                    ? "Take photos of tag, garment, and condition" 
-                    : "\(viewModel.capturedImages.count)/5 photos • Tap Done when ready")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "8888a0"))
-            }
+            Text(hintText)
+                .font(.system(size: 13))
+                .foregroundColor(Color(hex: "8888a0"))
             
             // Capture controls
             HStack(spacing: 30) {
@@ -210,8 +195,8 @@ struct CameraView: View {
                             .foregroundColor(.white)
                     }
                 }
-                .disabled(viewModel.isProcessing || viewModel.capturedImages.count >= 5)
-                .opacity(viewModel.isProcessing || viewModel.capturedImages.count >= 5 ? 0.5 : 1)
+                .disabled(viewModel.capturedImages.count >= 5)
+                .opacity(viewModel.capturedImages.count >= 5 ? 0.5 : 1)
                 
                 // Capture button
                 Button {
@@ -227,8 +212,8 @@ struct CameraView: View {
                             .frame(width: 60, height: 60)
                     }
                 }
-                .disabled(viewModel.isProcessing || viewModel.capturedImages.count >= 5)
-                .opacity(viewModel.isProcessing || viewModel.capturedImages.count >= 5 ? 0.5 : 1)
+                .disabled(viewModel.capturedImages.count >= 5)
+                .opacity(viewModel.capturedImages.count >= 5 ? 0.5 : 1)
                 
                 // Done / Flash button
                 if viewModel.capturedImages.isEmpty {
@@ -249,8 +234,8 @@ struct CameraView: View {
                 } else {
                     // Done button when images captured
                     Button {
-                        Task {
-                            await viewModel.submitAllImages()
+                        if let thumbnail = viewModel.submitAllImages() {
+                            triggerSubmissionAnimation(thumbnail: thumbnail)
                         }
                     } label: {
                         ZStack {
@@ -263,8 +248,6 @@ struct CameraView: View {
                                 .foregroundColor(.white)
                         }
                     }
-                    .disabled(viewModel.isProcessing)
-                    .opacity(viewModel.isProcessing ? 0.5 : 1)
                 }
             }
             .padding(.bottom, 30)
@@ -273,6 +256,123 @@ struct CameraView: View {
         .background(
             Color(hex: "0a0a0f")
                 .ignoresSafeArea()
+        )
+    }
+
+    private var hintText: String {
+        let queuedCount = viewModel.queuedItemCount
+        if viewModel.capturedImages.isEmpty {
+            if queuedCount > 0 {
+                return "Queued \(queuedCount) item\(queuedCount == 1 ? "" : "s") • Ready for next item"
+            }
+            return "Take photos of tag, garment, and condition"
+        }
+        return "\(viewModel.capturedImages.count)/5 photos • Tap Done when ready"
+    }
+    
+    private var submissionToastOverlay: some View {
+        VStack {
+            if isToastVisible, let toast = submissionToast {
+                submissionToastView(toast)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 60)
+            }
+            Spacer()
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isToastVisible)
+        .allowsHitTesting(isToastVisible)
+        .padding(.horizontal, 16)
+    }
+    
+    private var submissionAnimationOverlay: some View {
+        GeometryReader { proxy in
+            if let animation = submissionAnimation {
+                let bottomInset = proxy.safeAreaInsets.bottom
+                let endY = proxy.size.height - (bottomInset + 24)
+                let startY = endY - 140
+                let x = proxy.size.width / 2
+                
+                Image(uiImage: animation.thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 70, height: 70)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .position(x: x, y: startY + (endY - startY) * submissionAnimationProgress)
+                    .scaleEffect(1 - (submissionAnimationProgress * 0.6))
+                    .opacity(1 - submissionAnimationProgress)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+    
+    private func triggerSubmissionAnimation(thumbnail: UIImage) {
+        submissionAnimation = SubmissionAnimation(thumbnail: thumbnail)
+        submissionAnimationProgress = 0
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.75)) {
+            submissionAnimationProgress = 1
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            submissionAnimation = nil
+        }
+    }
+    
+    private func showSubmissionToast(for scanId: String) {
+        submissionToast = SubmissionToast(
+            scanId: scanId,
+            title: "Submitted to Scans",
+            message: "Continue with the next item or review this scan."
+        )
+        isToastVisible = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            if submissionToast?.scanId == scanId {
+                isToastVisible = false
+            }
+        }
+    }
+    
+    private func submissionToastView(_ toast: SubmissionToast) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(toast.title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+            
+            Text(toast.message)
+                .font(.system(size: 12))
+                .foregroundColor(Color(hex: "d1d5db"))
+            
+            HStack(spacing: 12) {
+                Button("View scan") {
+                    navigationState.selectedTab = .scans
+                    navigationState.requestedScanId = toast.scanId
+                    isToastVisible = false
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(Color(hex: "6366f1"))
+                
+                Button("Watch scan") {
+                    navigationState.selectedTab = .scans
+                    isToastVisible = false
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(Color(hex: "22c55e"))
+                
+                Spacer()
+                
+                Button {
+                    isToastVisible = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color(hex: "8888a0"))
+                }
+            }
+        }
+        .padding(14)
+        .background(Color(hex: "12121a"))
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color(hex: "2a2a34"), lineWidth: 1)
         )
     }
 }
@@ -471,6 +571,28 @@ struct CapturedImage: Identifiable {
     }
 }
 
+struct SubmissionPayload: Identifiable {
+    let id = UUID()
+    let images: [CapturedImage]
+    let submittedAt: Date
+    
+    init(images: [CapturedImage]) {
+        self.images = images
+        self.submittedAt = Date()
+    }
+}
+
+struct SubmissionToast: Identifiable {
+    let id = UUID()
+    let scanId: String
+    let title: String
+    let message: String
+}
+
+struct SubmissionAnimation {
+    let thumbnail: UIImage
+}
+
 // MARK: - Camera View Model
 
 @MainActor
@@ -479,13 +601,14 @@ class CameraViewModel: NSObject, ObservableObject {
     // MARK: - Published Properties
     
     @Published var hasPermission = false
-    @Published var isProcessing = false
     @Published var processingStatus = ""
     @Published var processingStage: ProcessingStage = .uploading
     @Published var isFlashOn = false
     @Published var showError = false
     @Published var errorMessage: String?
     @Published var capturedImages: [CapturedImage] = []
+    @Published var queuedItemCount = 0
+    @Published var latestSubmittedScanId: String?
     
     // MARK: - Services
     
@@ -494,6 +617,8 @@ class CameraViewModel: NSObject, ObservableObject {
     var convexService: ConvexService?
     
     private var photoOutput: AVCapturePhotoOutput?
+    private var submissionQueue: [SubmissionPayload] = []
+    private var isQueueProcessing = false
     
     // MARK: - Permissions
     
@@ -612,15 +737,38 @@ class CameraViewModel: NSObject, ObservableObject {
     
     // MARK: - Submit All Images
     
-    func submitAllImages() async {
-        guard !capturedImages.isEmpty else { return }
-        guard let convexService = convexService else {
+    func submitAllImages() -> UIImage? {
+        guard !capturedImages.isEmpty else { return nil }
+        
+        let submission = SubmissionPayload(images: capturedImages)
+        let thumbnail = capturedImages.first?.thumbnail
+        
+        submissionQueue.append(submission)
+        updateQueuedItemCount()
+        clearCapturedImages()
+        processQueueIfNeeded()
+        
+        return thumbnail
+    }
+    
+    private func processQueueIfNeeded() {
+        guard !isQueueProcessing else { return }
+        guard let submission = submissionQueue.first else { return }
+        isQueueProcessing = true
+        
+        Task {
+            await processSubmission(submission)
+        }
+    }
+    
+    private func processSubmission(_ submission: SubmissionPayload) async {
+        guard let convexService else {
             errorMessage = "Service not available"
             showError = true
+            finishCurrentSubmission()
             return
         }
         
-        isProcessing = true
         processingStage = .uploading
         processingStatus = "Preparing images..."
         
@@ -629,16 +777,13 @@ class CameraViewModel: NSObject, ObservableObject {
             var allHints: [String] = []
             var storageIds: [String] = []
             
-            // Step 1: Analyze and upload each image
-            for (index, captured) in capturedImages.enumerated() {
-                processingStatus = "Reading image \(index + 1)/\(capturedImages.count)..."
+            for (index, captured) in submission.images.enumerated() {
+                processingStatus = "Reading image \(index + 1)/\(submission.images.count)..."
                 
-                // On-device Vision analysis (skipped in Simulator, AI does the real work)
                 let tagAnalysis = await visionService.analyzeTag(image: captured.image)
                 allHints.append(contentsOf: tagAnalysis.allHints)
                 
-                // Upload image
-                processingStatus = "Uploading \(index + 1)/\(capturedImages.count)..."
+                processingStatus = "Uploading \(index + 1)/\(submission.images.count)..."
                 guard let imageData = captured.image.jpegData(compressionQuality: 0.8) else {
                     throw NSError(domain: "Camera", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to compress image \(index + 1)"])
                 }
@@ -648,17 +793,12 @@ class CameraViewModel: NSObject, ObservableObject {
                 print("[Camera] Uploaded image \(index + 1): \(storageId)")
             }
             
-            // Step 2: Create scan and start extraction
             processingStage = .extracting
             processingStatus = "AI reading tags..."
             let scanId = try await convexService.createScan(imageStorageId: storageIds[0])
             print("[Camera] Created scan: \(scanId)")
+            latestSubmittedScanId = scanId
             
-            // Step 3: Process with multi-image pipeline
-            // Note: The pipeline internally goes through extraction → research → refinement
-            // We'll update the stage based on typical timing since we can't get real-time updates here
-            
-            // Start the pipeline (this blocks until complete)
             let processingTask = Task {
                 try await convexService.processMultiImageScan(
                     scanId: scanId,
@@ -667,34 +807,22 @@ class CameraViewModel: NSObject, ObservableObject {
                 )
             }
             
-            // Simulate stage progression while waiting
-            // Extraction typically takes 3-8 seconds per image
-            try await Task.sleep(nanoseconds: UInt64(capturedImages.count * 3) * 1_000_000_000)
+            try await Task.sleep(nanoseconds: UInt64(submission.images.count * 3) * 1_000_000_000)
             if !processingTask.isCancelled {
                 processingStage = .researching
                 processingStatus = "Searching market data..."
             }
             
-            // Research typically takes 5-15 seconds
             try await Task.sleep(nanoseconds: 8_000_000_000)
             if !processingTask.isCancelled {
                 processingStage = .refining
                 processingStatus = "Analyzing prices..."
             }
             
-            // Wait for actual completion
             try await processingTask.value
-            
             processingStage = .complete
             processingStatus = "Complete!"
             print("[Camera] Multi-image processing complete!")
-            
-            // Clear captured images
-            clearCapturedImages()
-            
-            // Refresh scans list
-            try await convexService.fetchUserScans()
-            
         } catch let error as NSError {
             print("[Camera] Error: \(error.domain) code=\(error.code) \(error.localizedDescription)")
             if error.code == -1001 {
@@ -709,7 +837,20 @@ class CameraViewModel: NSObject, ObservableObject {
             showError = true
         }
         
-        isProcessing = false
+        finishCurrentSubmission()
+    }
+    
+    private func finishCurrentSubmission() {
+        if !submissionQueue.isEmpty {
+            submissionQueue.removeFirst()
+        }
+        isQueueProcessing = false
+        updateQueuedItemCount()
+        processQueueIfNeeded()
+    }
+    
+    private func updateQueuedItemCount() {
+        queuedItemCount = submissionQueue.count
     }
 }
 
@@ -740,4 +881,5 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
 #Preview {
     CameraView()
         .environmentObject(ConvexService())
+        .environmentObject(AppNavigationState())
 }

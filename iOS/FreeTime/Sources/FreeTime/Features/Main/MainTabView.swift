@@ -3,17 +3,17 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var convexService: ConvexService
-    @State private var selectedTab = 0
+    @EnvironmentObject var navigationState: AppNavigationState
     
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $navigationState.selectedTab) {
             // Camera Tab
             CameraView()
                 .tabItem {
                     Image(systemName: "camera.fill")
                     Text("Scan")
                 }
-                .tag(0)
+                .tag(AppNavigationState.Tab.camera)
             
             // Scans Tab
             ScanListView()
@@ -21,7 +21,7 @@ struct MainTabView: View {
                     Image(systemName: "list.bullet.rectangle.fill")
                     Text("Scans")
                 }
-                .tag(1)
+                .tag(AppNavigationState.Tab.scans)
             
             // Profile Tab
             ProfileView()
@@ -29,7 +29,7 @@ struct MainTabView: View {
                     Image(systemName: "person.fill")
                     Text("Profile")
                 }
-                .tag(2)
+                .tag(AppNavigationState.Tab.profile)
         }
         .tint(Color(hex: "6366f1"))
         .onAppear {
@@ -189,5 +189,5 @@ struct ProfileView: View {
     MainTabView()
         .environmentObject(AuthService())
         .environmentObject(ConvexService())
+        .environmentObject(AppNavigationState())
 }
-
