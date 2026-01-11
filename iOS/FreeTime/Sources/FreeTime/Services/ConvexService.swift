@@ -32,7 +32,8 @@ class ConvexService: ObservableObject {
         }
         
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForRequest = 120  // Pipeline can take 60-90 seconds
+        config.timeoutIntervalForResource = 180
         self.session = URLSession(configuration: config)
     }
     
