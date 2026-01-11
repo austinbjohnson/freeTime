@@ -75,10 +75,10 @@ struct ProfileView: View {
                 VStack(spacing: 32) {
                     // Profile Header
                     VStack(spacing: 16) {
-                        // Avatar
+                        // Avatar (cached)
                         if let avatarUrl = authService.workosUser?.profilePictureUrl,
                            let url = URL(string: avatarUrl) {
-                            AsyncImage(url: url) { image in
+                            CachedAsyncImage(url: url) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)

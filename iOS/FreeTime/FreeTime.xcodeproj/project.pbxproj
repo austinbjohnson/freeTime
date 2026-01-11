@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -14,9 +14,12 @@
 		576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4404FD99B4D6E383A2063FDD /* MainTabView.swift */; };
 		5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E401DC467440318E6A2B87 /* AuthService.swift */; };
 		675504F9E1CEBF59099524A5 /* ScanDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D360E4762528815F579E1E /* ScanDetailView.swift */; };
+		7CAED787D5FEB22D5FB43A8C /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52024E5F2B146E1EEE8DFA0C /* CachedAsyncImage.swift */; };
 		94A8D05FCC3D6FBC6986FB3C /* Scan.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DE599933A0AE725725FD5E /* Scan.swift */; };
 		BE1E7A5741B284B4E20ABF93 /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 397872C61E4D084B9B91C503 /* VisionService.swift */; };
 		BE57D16F95DBBCBA7E923547 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A95E9871B8DA4D35925E8B8 /* User.swift */; };
+		C324723E3DD095D1EEA339A7 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1F560BF5BC286F3D2EC3B5 /* ImageCacheService.swift */; };
+		C5FB78A6368DA628AD313F04 /* ClarificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEADBC78BD616AE746DAE6B5 /* ClarificationView.swift */; };
 		D0ED05A6E0ED1E6D80866298 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4CB0E6FD98E2465903A51E6 /* LoginView.swift */; };
 		FB17DCA7A7DFF97C1982F0E7 /* ScanListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E688C9F8012269D85D230B42 /* ScanListView.swift */; };
 		FDCB1A94BE17ED02DD5A98C4 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFAE0C44E0209D4C95ECD310 /* CameraView.swift */; };
@@ -28,9 +31,11 @@
 		2EDBE211BAF7B5E4566FC7E9 /* FreeTime.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FreeTime.entitlements; sourceTree = "<group>"; };
 		397872C61E4D084B9B91C503 /* VisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionService.swift; sourceTree = "<group>"; };
 		4404FD99B4D6E383A2063FDD /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
-		46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		4A95E9871B8DA4D35925E8B8 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
-		9163F1C7563F75C94CC6F886 /* FreeTime.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FreeTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		52024E5F2B146E1EEE8DFA0C /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
+		8D1F560BF5BC286F3D2EC3B5 /* ImageCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCacheService.swift; sourceTree = "<group>"; };
+		9163F1C7563F75C94CC6F886 /* FreeTime.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FreeTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6E401DC467440318E6A2B87 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C910863456D9CBC2C4CF6E6E /* ConvexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexService.swift; sourceTree = "<group>"; };
@@ -41,12 +46,14 @@
 		EFAE0C44E0209D4C95ECD310 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		F5D360E4762528815F579E1E /* ScanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanDetailView.swift; sourceTree = "<group>"; };
 		F6DE599933A0AE725725FD5E /* Scan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scan.swift; sourceTree = "<group>"; };
+		FEADBC78BD616AE746DAE6B5 /* ClarificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClarificationView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		0029689235421643C7D9E3CB /* Scans */ = {
 			isa = PBXGroup;
 			children = (
+				FEADBC78BD616AE746DAE6B5 /* ClarificationView.swift */,
 				F5D360E4762528815F579E1E /* ScanDetailView.swift */,
 				E688C9F8012269D85D230B42 /* ScanListView.swift */,
 			);
@@ -77,6 +84,14 @@
 				04971C999EC5845CDB9C2627 /* Release.xcconfig */,
 			);
 			path = Config;
+			sourceTree = "<group>";
+		};
+		3E576564D5C5A3A9EFCAC151 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				52024E5F2B146E1EEE8DFA0C /* CachedAsyncImage.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 		64A02E3AADCC09DF1B18B65F /* App */ = {
@@ -112,6 +127,7 @@
 			children = (
 				A6E401DC467440318E6A2B87 /* AuthService.swift */,
 				C910863456D9CBC2C4CF6E6E /* ConvexService.swift */,
+				8D1F560BF5BC286F3D2EC3B5 /* ImageCacheService.swift */,
 				397872C61E4D084B9B91C503 /* VisionService.swift */,
 			);
 			path = Services;
@@ -128,6 +144,7 @@
 				9C0BB72F1724557C5626762F /* Features */,
 				966934C3C1E224046FEB4611 /* Models */,
 				B8D6165667C971DFBADCF20B /* Services */,
+				3E576564D5C5A3A9EFCAC151 /* Views */,
 			);
 			name = FreeTime;
 			path = Sources/FreeTime;
@@ -188,6 +205,7 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					D9E53ACE14C3EF7F43C3D5A6 = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -202,6 +220,7 @@
 			);
 			mainGroup = 2F32282CC4C5E9E2A5E4F48F;
 			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -228,9 +247,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */,
+				7CAED787D5FEB22D5FB43A8C /* CachedAsyncImage.swift in Sources */,
 				FDCB1A94BE17ED02DD5A98C4 /* CameraView.swift in Sources */,
+				C5FB78A6368DA628AD313F04 /* ClarificationView.swift in Sources */,
 				018C790C58BDDB88C19F3803 /* ConvexService.swift in Sources */,
 				00074F68F778AF07545174D3 /* FreeTimeApp.swift in Sources */,
+				C324723E3DD095D1EEA339A7 /* ImageCacheService.swift in Sources */,
 				D0ED05A6E0ED1E6D80866298 /* LoginView.swift in Sources */,
 				576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */,
 				94A8D05FCC3D6FBC6986FB3C /* Scan.swift in Sources */,
@@ -250,12 +272,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Sources/FreeTime/FreeTime.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 7P7TT2C3UR;
 				INFOPLIST_FILE = Sources/FreeTime/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ajohnson.freetime;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -269,12 +287,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Sources/FreeTime/FreeTime.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 7P7TT2C3UR;
 				INFOPLIST_FILE = Sources/FreeTime/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ajohnson.freetime;
 				SDKROOT = iphoneos;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;

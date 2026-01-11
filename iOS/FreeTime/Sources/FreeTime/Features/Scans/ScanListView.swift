@@ -199,8 +199,8 @@ struct ScanCardView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 16) {
-                // Thumbnail
-                AsyncImage(url: URL(string: scan.thumbnailUrl ?? scan.imageUrl ?? "")) { image in
+                // Thumbnail (cached for instant loads)
+                CachedAsyncImage(url: URL(string: scan.thumbnailUrl ?? scan.imageUrl ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
