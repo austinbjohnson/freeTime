@@ -320,10 +320,10 @@ struct CameraView: View {
         submissionToast = SubmissionToast(
             scanId: scanId,
             title: "Submitted to Scans",
-            message: "Continue with the next item or review this scan."
+            message: "Tap to open this scan while you keep capturing."
         )
         isToastVisible = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
             if submissionToast?.scanId == scanId {
                 isToastVisible = false
             }
@@ -331,49 +331,41 @@ struct CameraView: View {
     }
     
     private func submissionToastView(_ toast: SubmissionToast) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(toast.title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white)
-            
-            Text(toast.message)
-                .font(.system(size: 12))
-                .foregroundColor(Color(hex: "d1d5db"))
-            
-            HStack(spacing: 12) {
-                Button("View scan") {
-                    navigationState.selectedTab = .scans
-                    navigationState.requestedScanId = toast.scanId
-                    isToastVisible = false
-                }
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color(hex: "6366f1"))
-                
-                Button("Watch scan") {
-                    navigationState.selectedTab = .scans
-                    isToastVisible = false
-                }
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color(hex: "22c55e"))
-                
-                Spacer()
-                
-                Button {
-                    isToastVisible = false
-                } label: {
-                    Image(systemName: "xmark")
+        Button {
+            navigationState.selectedTab = .scans
+            navigationState.requestedScanId = toast.scanId
+            isToastVisible = false
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(toast.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color(hex: "8888a0"))
+                        .foregroundColor(Color(hex: "6366f1"))
                 }
+                
+                Text(toast.message)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "d1d5db"))
+                
+                Text("View scan")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color(hex: "6366f1"))
             }
+            .padding(14)
+            .background(Color(hex: "12121a"))
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color(hex: "2a2a34"), lineWidth: 1)
+            )
         }
-        .padding(14)
-        .background(Color(hex: "12121a"))
-        .cornerRadius(14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color(hex: "2a2a34"), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
     }
 }
 
