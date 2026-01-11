@@ -102,9 +102,9 @@ struct CameraView: View {
     
     private var photoStripView: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+            HStack(spacing: 16) {
                 ForEach(Array(viewModel.capturedImages.enumerated()), id: \.element.id) { index, captured in
-                    ZStack(alignment: .topTrailing) {
+                    ZStack {
                         Image(uiImage: captured.thumbnail)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -115,48 +115,47 @@ struct CameraView: View {
                                     .stroke(Color(hex: "6366f1"), lineWidth: 2)
                             )
                         
-                        // Delete button
-                        Button {
-                            withAnimation {
-                                viewModel.removeCapturedImage(at: index)
+                        // Image number badge (bottom left, inside)
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Text("\(index + 1)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 20, height: 20)
+                                    .background(Color(hex: "6366f1"))
+                                    .clipShape(Circle())
+                                    .padding(4)
+                                Spacer()
                             }
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundStyle(.white, Color(hex: "ef4444"))
                         }
-                        .offset(x: 6, y: -6)
                         
-                        // Image type indicator
-                        Text("\(index + 1)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 18, height: 18)
-                            .background(Color(hex: "6366f1"))
-                            .clipShape(Circle())
-                            .offset(x: -50, y: -6)
-                    }
-                }
-                
-                // Add more hint
-                if viewModel.capturedImages.count < 5 {
-                    VStack(spacing: 4) {
-                        Image(systemName: "plus.circle.dashed")
-                            .font(.system(size: 24))
-                            .foregroundColor(Color(hex: "8888a0"))
-                        Text("Add")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color(hex: "8888a0"))
+                        // Delete button (top right, inside)
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Button {
+                                    withAnimation {
+                                        viewModel.removeCapturedImage(at: index)
+                                    }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(.white, Color(hex: "ef4444"))
+                                }
+                                .padding(4)
+                            }
+                            Spacer()
+                        }
                     }
                     .frame(width: 70, height: 70)
-                    .background(Color(hex: "1a1a24"))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 4)
         }
-        .frame(height: 90)
-        .padding(.vertical, 8)
+        .frame(height: 86)
+        .padding(.vertical, 4)
         .background(Color(hex: "0a0a0f"))
     }
     
