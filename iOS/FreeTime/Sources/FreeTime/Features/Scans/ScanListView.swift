@@ -3,6 +3,7 @@ import SwiftUI
 struct ScanListView: View {
     @EnvironmentObject var convexService: ConvexService
     @EnvironmentObject var navigationState: AppNavigationState
+    @EnvironmentObject var offlineQueueManager: OfflineQueueManager
     @State private var selectedScan: Scan?
     @State private var scanToDelete: Scan?
     @State private var showDeleteConfirmation = false
@@ -17,7 +18,12 @@ struct ScanListView: View {
                     .ignoresSafeArea()
                 
                 if convexService.scans.isEmpty && !convexService.isLoading {
-                    emptyStateView
+                    VStack(spacing: 16) {
+                        if convexService.isOffline || offlineQueueManager.pendingCount > 0 {
+                            offlineStatusBanner
+                        }
+                        emptyStateView
+                    }
                 } else {
                     scansList
                 }
@@ -106,6 +112,10 @@ struct ScanListView: View {
     
     private var scansList: some View {
         VStack(spacing: 0) {
+            if convexService.isOffline || offlineQueueManager.pendingCount > 0 {
+                offlineStatusBanner
+            }
+            
             // Batch delete button when in edit mode
             if isEditMode && !selectedForDeletion.isEmpty {
                 Button {
@@ -168,6 +178,48 @@ struct ScanListView: View {
             .scrollContentBackground(.hidden)
             .background(Color(hex: "0a0a0f"))
         }
+    }
+
+    private var offlineStatusBanner: some View {
+        let pending = offlineQueueManager.pendingCount
+        let title: String
+        let subtitle: String
+        let accent: Color
+        
+        if convexService.isOffline {
+            title = "Offline Mode"
+            subtitle = pending > 0
+                ? "\(pending) queued scan\(pending == 1 ? "" : "s") will upload when back online"
+                : "Scans will upload when you reconnect"
+            accent = Color(hex: "f59e0b")
+        } else {
+            title = "Uploading queued scans"
+            subtitle = "\(pending) pending upload\(pending == 1 ? "" : "s")"
+            accent = Color(hex: "6366f1")
+        }
+        
+        return HStack(spacing: 12) {
+            Image(systemName: convexService.isOffline ? "wifi.slash" : "arrow.triangle.2.circlepath")
+                .foregroundColor(accent)
+                .font(.system(size: 16, weight: .semibold))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "8888a0"))
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(hex: "12121a"))
+        .cornerRadius(12)
+        .padding(.horizontal)
+        .padding(.top, 8)
     }
     
     // MARK: - Actions
@@ -584,4 +636,5 @@ struct ProcessingProgressView: View {
     ScanListView()
         .environmentObject(ConvexService())
         .environmentObject(AppNavigationState())
+        .environmentObject(OfflineQueueManager())
 }

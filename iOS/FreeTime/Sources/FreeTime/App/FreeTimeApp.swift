@@ -6,6 +6,8 @@ struct FreeTimeApp: App {
     @StateObject private var authService = AuthService()
     @StateObject private var convexService = ConvexService()
     @StateObject private var navigationState = AppNavigationState()
+    @StateObject private var networkMonitor = NetworkMonitor()
+    @StateObject private var offlineQueueManager = OfflineQueueManager()
     
     init() {
         // Configure URLCache for system-level HTTP caching
@@ -23,6 +25,12 @@ struct FreeTimeApp: App {
                 .environmentObject(authService)
                 .environmentObject(convexService)
                 .environmentObject(navigationState)
+                .environmentObject(networkMonitor)
+                .environmentObject(offlineQueueManager)
+                .onAppear {
+                    convexService.attachNetworkMonitor(networkMonitor)
+                    offlineQueueManager.attach(convexService: convexService, networkMonitor: networkMonitor)
+                }
                 .onChange(of: scenePhase) { newPhase in
                     Task { @MainActor in
                         switch newPhase {

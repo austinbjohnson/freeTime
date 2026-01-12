@@ -5,6 +5,8 @@ import PhotosUI
 struct CameraView: View {
     @EnvironmentObject var convexService: ConvexService
     @EnvironmentObject var navigationState: AppNavigationState
+    @EnvironmentObject var networkMonitor: NetworkMonitor
+    @EnvironmentObject var offlineQueueManager: OfflineQueueManager
     @StateObject private var viewModel = CameraViewModel()
     @State private var showingImagePicker = false
     @State private var selectedItem: PhotosPickerItem?
@@ -89,6 +91,7 @@ struct CameraView: View {
         .onAppear {
             viewModel.checkPermissions()
             viewModel.convexService = convexService
+            viewModel.offlineQueueManager = offlineQueueManager
         }
         .onChange(of: viewModel.latestSubmittedScanId) { _, newId in
             guard let newId else { return }
@@ -261,7 +264,17 @@ struct CameraView: View {
 
     private var hintText: String {
         let queuedCount = viewModel.queuedItemCount
+        let offlineQueued = offlineQueueManager.pendingCount
         if viewModel.capturedImages.isEmpty {
+            if convexService.isOffline {
+                if offlineQueued > 0 {
+                    return "Offline • \(offlineQueued) queued for upload"
+                }
+                return "Offline • Scans will upload when back online"
+            }
+            if offlineQueued > 0 {
+                return "Uploading \(offlineQueued) queued item\(offlineQueued == 1 ? "" : "s")"
+            }
             if queuedCount > 0 {
                 return "Queued \(queuedCount) item\(queuedCount == 1 ? "" : "s") • Ready for next item"
             }
@@ -607,6 +620,7 @@ class CameraViewModel: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let visionService = VisionService()
     var convexService: ConvexService?
+    var offlineQueueManager: OfflineQueueManager?
     
     private var photoOutput: AVCapturePhotoOutput?
     private var submissionQueue: [SubmissionPayload] = []
@@ -731,16 +745,40 @@ class CameraViewModel: NSObject, ObservableObject {
     
     func submitAllImages() -> UIImage? {
         guard !capturedImages.isEmpty else { return nil }
-        
-        let submission = SubmissionPayload(images: capturedImages)
+        let images = capturedImages
         let thumbnail = capturedImages.first?.thumbnail
+        clearCapturedImages()
         
+        if convexService?.isOffline == true {
+            Task {
+                await queueOfflineSubmission(images)
+            }
+            return thumbnail
+        }
+        
+        let submission = SubmissionPayload(images: images)
         submissionQueue.append(submission)
         updateQueuedItemCount()
-        clearCapturedImages()
         processQueueIfNeeded()
         
         return thumbnail
+    }
+
+    private func queueOfflineSubmission(_ images: [CapturedImage]) async {
+        guard let offlineQueueManager else { return }
+        
+        var allHints: [String] = []
+        for captured in images {
+            let tagAnalysis = await visionService.analyzeTag(image: captured.image)
+            allHints.append(contentsOf: tagAnalysis.allHints)
+        }
+        
+        let uniqueHints = Array(Set(allHints))
+        let queued = offlineQueueManager.enqueue(images: images.map(\.image), hints: uniqueHints)
+        if !queued {
+            errorMessage = "Failed to queue submission offline. Please try again."
+            showError = true
+        }
     }
     
     private func processQueueIfNeeded() {
@@ -874,4 +912,6 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
     CameraView()
         .environmentObject(ConvexService())
         .environmentObject(AppNavigationState())
+        .environmentObject(NetworkMonitor())
+        .environmentObject(OfflineQueueManager())
 }
