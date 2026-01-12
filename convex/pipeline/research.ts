@@ -667,6 +667,7 @@ async function searchEbaySold(query: string): Promise<Listing[]> {
 
     const data = await response.json();
     const listings: Listing[] = [];
+    const fallbackSearchUrl = buildEbaySoldSearchUrl(query);
 
     for (const item of data.organic_results || []) {
       const price = item.price?.extracted || item.price?.raw;
@@ -676,7 +677,7 @@ async function searchEbaySold(query: string): Promise<Listing[]> {
           price: typeof price === "number" ? price : parseFloat(String(price).replace(/[$,]/g, "")),
           currency: "USD",
           platform: "eBay (Sold)",
-          url: item.link,
+          url: normalizeEbaySoldUrl(item.link, fallbackSearchUrl, item.title),
           soldDate: item.sold_date,
           condition: item.condition,
         });
@@ -805,10 +806,6 @@ function parseListingsFromResults(
         }
       }
 
-      const isSold = item.title.toLowerCase().includes("sold") || 
-                     item.link.toLowerCase().includes("sold") ||
-                     item.link.includes("LH_Sold=1");
-
       listings.push({
         title: item.title,
         price,
@@ -816,12 +813,50 @@ function parseListingsFromResults(
         platform: matchedPlatform?.name || targetPlatform || "Unknown",
         url: item.link,
         condition: extractCondition(item.title + " " + (item.snippet || "")),
-        soldDate: isSold ? "sold" : undefined,
       });
     }
   }
 
   return listings;
+}
+
+function buildEbaySoldSearchUrl(query: string): string {
+  const params = new URLSearchParams({
+    _nkw: query,
+    LH_Complete: "1",
+    LH_Sold: "1",
+  });
+  return `https://www.ebay.com/sch/i.html?${params}`;
+}
+
+function normalizeEbaySoldUrl(
+  link: string | undefined,
+  fallbackSearchUrl: string,
+  title?: string
+): string {
+  const fallbackUrl = title?.trim() ? buildEbaySoldSearchUrl(title) : fallbackSearchUrl;
+  if (!link) return fallbackUrl;
+
+  const normalized = link.startsWith("//") ? `https:${link}` : link;
+
+  try {
+    const parsed = new URL(normalized);
+    if (!parsed.hostname.includes("ebay.")) {
+      return fallbackUrl;
+    }
+
+    if (parsed.pathname.startsWith("/itm/")) {
+      return normalized;
+    }
+
+    const hasSoldFilter =
+      parsed.searchParams.get("LH_Sold") === "1" ||
+      parsed.searchParams.get("LH_Complete") === "1";
+
+    return hasSoldFilter ? normalized : fallbackUrl;
+  } catch {
+    return fallbackUrl;
+  }
 }
 
 function extractCondition(text: string): string | undefined {
