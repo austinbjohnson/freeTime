@@ -371,15 +371,13 @@ struct CameraView: View {
     private var queueTrayView: some View {
         let queuedLocal = viewModel.queuedItemCount
         let offlineQueued = offlineQueueManager.pendingCount
-        let activeScans = convexService.scans
-            .filter { !isTerminalStatus($0.status) }
-            .sorted { $0.createdAt > $1.createdAt }
+        let cutoff = Date().addingTimeInterval(-600)
         let recentScans = convexService.scans
+            .filter { $0.createdAt >= cutoff }
             .sorted { $0.createdAt > $1.createdAt }
-            .prefix(6)
-        let completedToday = convexService.scans.filter { scan in
-            scan.status == .completed && Calendar.current.isDateInToday(scan.createdAt)
-        }.count
+        let activeRecentScans = recentScans.filter { !isCompletedStatus($0.status) }
+        let completedRecentScans = recentScans.filter { isCompletedStatus($0.status) }
+        let queueScans = activeRecentScans + completedRecentScans
 
         return VStack(spacing: 16) {
             HStack {
@@ -387,7 +385,7 @@ struct CameraView: View {
                     Text("Queue")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
-                    Text("\(activeScans.count) active • \(completedToday) completed today")
+                    Text("\(activeRecentScans.count) active • \(completedRecentScans.count) completed (10m)")
                         .font(.system(size: 12))
                         .foregroundColor(Color(hex: "8888a0"))
                 }
@@ -424,8 +422,8 @@ struct CameraView: View {
                             subtitle: "\(offlineQueued) ready when back online"
                         )
                     }
-                    
-                    ForEach(Array(recentScans), id: \.id) { scan in
+
+                    ForEach(Array(queueScans), id: \.id) { scan in
                         Button {
                             navigationState.selectedTab = .scans
                             navigationState.requestedScanId = scan.id
@@ -437,9 +435,9 @@ struct CameraView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    
-                    if queuedLocal == 0 && offlineQueued == 0 && recentScans.isEmpty {
-                        Text("No items in the queue yet.")
+
+                    if queuedLocal == 0 && offlineQueued == 0 && queueScans.isEmpty {
+                        Text("No scans in the last 10 minutes.")
                             .font(.system(size: 13))
                             .foregroundColor(Color(hex: "8888a0"))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -573,12 +571,13 @@ struct CameraView: View {
     
     private var queueBadgeCount: Int {
         let offlineQueued = offlineQueueManager.pendingCount
-        let activeCount = convexService.scans.filter { !isTerminalStatus($0.status) }.count
-        return viewModel.queuedItemCount + offlineQueued + activeCount
+        let cutoff = Date().addingTimeInterval(-600)
+        let recentCount = convexService.scans.filter { $0.createdAt >= cutoff }.count
+        return viewModel.queuedItemCount + offlineQueued + recentCount
     }
     
-    private func isTerminalStatus(_ status: ScanStatus) -> Bool {
-        status == .completed || status == .failed
+    private func isCompletedStatus(_ status: ScanStatus) -> Bool {
+        status == .completed
     }
 }
 
