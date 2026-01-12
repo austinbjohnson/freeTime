@@ -49,6 +49,17 @@ npm run test:web
 
 Upload an image and watch the pipeline process it through extraction → research → refinement.
 
+### Web Portal (Next.js)
+
+```bash
+cd web
+npm install
+npm run dev
+# Opens http://localhost:3000
+```
+
+The portal mirrors the iOS scan experience using file uploads (multi-image intake supported).
+
 ## Project Structure
 
 ```
@@ -63,6 +74,7 @@ freeTime/
 │       └── orchestrator.ts   # Pipeline coordination
 ├── iOS/                       # iOS app (Swift/SwiftUI)
 │   └── FreeTime/
+├── web/                       # User-facing web portal (Next.js)
 ├── web-test/                  # Backend test UI
 └── testImages/               # Sample images for testing
 ```
@@ -116,6 +128,8 @@ MARKET_REGION=US   # US, CA, UK, EU, AU (default US)
 # Auth (optional)
 WORKOS_API_KEY=sk_...
 WORKOS_CLIENT_ID=client_...
+NEXT_PUBLIC_WORKOS_CLIENT_ID=client_...
+NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
 ```
 
 ## Contributing
