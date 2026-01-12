@@ -7,6 +7,10 @@ SECURITY_NOTES.md
 
 # Node
 node_modules/
+.next/
+web/.next/
+web/out/
+web/.env.local
 
 # macOS
 .DS_Store
