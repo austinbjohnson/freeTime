@@ -13,6 +13,7 @@ struct CameraView: View {
     @State private var submissionAnimation: SubmissionAnimation?
     @State private var submissionAnimationProgress: CGFloat = 0
     @State private var isQueueTrayVisible = false
+    @State private var queueSelectedScan: Scan?
     
     var body: some View {
         ZStack {
@@ -106,6 +107,9 @@ struct CameraView: View {
             Button("OK") { viewModel.errorMessage = nil }
         } message: {
             Text(viewModel.errorMessage ?? "An unknown error occurred")
+        }
+        .sheet(item: $queueSelectedScan) { scan in
+            ScanDetailView(scan: scan)
         }
     }
     
@@ -425,8 +429,7 @@ struct CameraView: View {
 
                     ForEach(Array(queueScans), id: \.id) { scan in
                         Button {
-                            navigationState.selectedTab = .scans
-                            navigationState.requestedScanId = scan.id
+                            openQueueScan(scan)
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                                 isQueueTrayVisible = false
                             }
@@ -567,6 +570,10 @@ struct CameraView: View {
         case .failed:
             return Color(hex: "ef4444")
         }
+    }
+
+    private func openQueueScan(_ scan: Scan) {
+        queueSelectedScan = scan
     }
     
     private var queueBadgeCount: Int {
