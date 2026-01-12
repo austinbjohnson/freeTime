@@ -24,13 +24,13 @@ export function UploadPanel({ userId, onScanCreated }: UploadPanelProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const generateUploadUrl = useMutation(
-    "scans:generateUploadUrl" as FunctionReference<"mutation">
+    "scans:generateUploadUrl" as unknown as FunctionReference<"mutation">
   );
   const createScan = useMutation(
-    "scans:createScan" as FunctionReference<"mutation">
+    "scans:createScan" as unknown as FunctionReference<"mutation">
   );
   const processMultiImageScan = useAction(
-    "pipeline/orchestrator:processMultiImageScan" as FunctionReference<"action">
+    "pipeline/orchestrator:processMultiImageScan" as unknown as FunctionReference<"action">
   );
 
   const fileCountLabel = useMemo(() => {

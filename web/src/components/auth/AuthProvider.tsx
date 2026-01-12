@@ -6,6 +6,7 @@ import type { FunctionReference } from "convex/server";
 import {
   clearSession,
   getStoredSession,
+  sessionUpdatedEvent,
   startWorkosLogin,
   storeSession,
   type WorkOSUser,
@@ -28,14 +29,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const syncUser = useMutation(
-    "users:getOrCreateUser" as FunctionReference<"mutation">
+    "users:getOrCreateUser" as unknown as FunctionReference<"mutation">
   );
 
   useEffect(() => {
-    const session = getStoredSession();
-    setUser(session?.user ?? null);
-    setConvexUserId(session?.convexUserId ?? null);
+    const syncFromStorage = () => {
+      const session = getStoredSession();
+      setUser(session?.user ?? null);
+      setConvexUserId(session?.convexUserId ?? null);
+    };
+    syncFromStorage();
     setIsReady(true);
+
+    const handleSessionUpdate = () => {
+      syncFromStorage();
+    };
+    window.addEventListener(sessionUpdatedEvent, handleSessionUpdate);
+    return () => {
+      window.removeEventListener(sessionUpdatedEvent, handleSessionUpdate);
+    };
   }, []);
 
   useEffect(() => {

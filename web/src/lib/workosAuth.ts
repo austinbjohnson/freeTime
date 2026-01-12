@@ -19,6 +19,7 @@ export type WorkOSSession = {
 };
 
 const sessionKey = "freetime.workos.session";
+export const sessionUpdatedEvent = "freetime.workos.sessionUpdated";
 const verifierKey = "freetime.workos.verifier";
 const stateKey = "freetime.workos.state";
 
@@ -84,6 +85,7 @@ export function storeSession(update: Partial<WorkOSSession>): WorkOSSession | nu
     ...update,
   } as WorkOSSession;
   window.localStorage.setItem(sessionKey, JSON.stringify(next));
+  window.dispatchEvent(new Event(sessionUpdatedEvent));
   return next;
 }
 
@@ -92,6 +94,7 @@ export function clearSession() {
     return;
   }
   window.localStorage.removeItem(sessionKey);
+  window.dispatchEvent(new Event(sessionUpdatedEvent));
 }
 
 export function clearAuthState() {

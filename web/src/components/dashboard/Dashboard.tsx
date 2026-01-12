@@ -51,7 +51,7 @@ type Scan = {
 export function Dashboard() {
   const { user, convexUserId, logout } = useAuth();
   const scans = useQuery(
-    "scans:getUserScans" as FunctionReference<"query">,
+    "scans:getUserScans" as unknown as FunctionReference<"query">,
     convexUserId ? { userId: convexUserId } : "skip"
   ) as Scan[] | undefined;
   const [selectedId, setSelectedId] = useState<string | null>(null);
