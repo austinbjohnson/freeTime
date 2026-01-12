@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 
 @main
@@ -30,11 +31,13 @@ struct FreeTimeApp: App {
                 .onAppear {
                     convexService.attachNetworkMonitor(networkMonitor)
                     offlineQueueManager.attach(convexService: convexService, networkMonitor: networkMonitor)
+                    navigationState.applyPendingTabRequest()
                 }
                 .onChange(of: scenePhase) { newPhase in
                     Task { @MainActor in
                         switch newPhase {
                         case .active:
+                            navigationState.applyPendingTabRequest()
                             convexService.setRealtimeActive(true)
                         case .inactive, .background:
                             convexService.setRealtimeActive(false)
@@ -58,5 +61,30 @@ struct ContentView: View {
                 LoginView()
             }
         }
+    }
+}
+
+struct StartScanIntent: AppIntent {
+    static var title: LocalizedStringResource = "Start Scan in FreeTime"
+    static var description = IntentDescription("Open FreeTime and jump to the Scan camera.")
+    static var openAppWhenRun: Bool = true
+
+    func perform() async throws -> some IntentResult {
+        UserDefaults.standard.set(
+            AppNavigationState.Tab.camera.rawValue,
+            forKey: AppNavigationState.requestedTabDefaultsKey
+        )
+        return .result()
+    }
+}
+
+struct FreeTimeShortcuts: AppShortcutsProvider {
+    static var appShortcuts: [AppShortcut] {
+        AppShortcut(
+            intent: StartScanIntent(),
+            phrases: ["Start scan in \(.applicationName)"],
+            shortTitle: "Start Scan",
+            systemImageName: "camera.fill"
+        )
     }
 }
