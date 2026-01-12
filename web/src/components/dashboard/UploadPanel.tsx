@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAction, useMutation } from "convex/react";
+import type { FunctionReference } from "convex/server";
 
 const MAX_FILES = 6;
 
@@ -22,10 +23,14 @@ export function UploadPanel({ userId, onScanCreated }: UploadPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const generateUploadUrl = useMutation("scans:generateUploadUrl" as any);
-  const createScan = useMutation("scans:createScan" as any);
+  const generateUploadUrl = useMutation(
+    "scans:generateUploadUrl" as FunctionReference<"mutation">
+  );
+  const createScan = useMutation(
+    "scans:createScan" as FunctionReference<"mutation">
+  );
   const processMultiImageScan = useAction(
-    "pipeline/orchestrator:processMultiImageScan" as any
+    "pipeline/orchestrator:processMultiImageScan" as FunctionReference<"action">
   );
 
   const fileCountLabel = useMemo(() => {

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
+import type { FunctionReference } from "convex/server";
 import {
   clearSession,
   getStoredSession,
@@ -26,7 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [convexUserId, setConvexUserId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const syncUser = useMutation("users:getOrCreateUser" as any);
+  const syncUser = useMutation(
+    "users:getOrCreateUser" as FunctionReference<"mutation">
+  );
 
   useEffect(() => {
     const session = getStoredSession();

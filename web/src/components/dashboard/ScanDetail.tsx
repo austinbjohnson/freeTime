@@ -51,6 +51,15 @@ const statusLabels: Record<string, string> = {
   failed: "Failed",
 };
 
+const baseStages = [
+  { key: "uploaded", label: "Queued" },
+  { key: "extracting", label: "Reading" },
+  { key: "awaiting_clarification", label: "Needs input" },
+  { key: "researching", label: "Searching" },
+  { key: "refining", label: "Analyzing" },
+  { key: "completed", label: "Complete" },
+];
+
 function formatCurrency(amount: number, currency?: string) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -73,6 +82,14 @@ export function ScanDetail({ scan }: { scan: Scan | null }) {
   const suggested = scan.refinedFindings?.suggestedPriceRange;
   const listings = scan.researchResults?.listings ?? [];
   const sold = scan.researchResults?.soldListings ?? [];
+  const isFailed = scan.status === "failed";
+  const stages = isFailed
+    ? [...baseStages.slice(0, 5), { key: "failed", label: "Failed" }]
+    : baseStages;
+  const activeIndex = Math.max(
+    0,
+    stages.findIndex((stage) => stage.key === scan.status)
+  );
 
   return (
     <section className="surface-card rounded-3xl p-6 shadow-glow animate-rise">
@@ -89,6 +106,35 @@ export function ScanDetail({ scan }: { scan: Scan | null }) {
         <span className="tag tag-muted">
           {statusLabels[scan.status] ?? scan.status}
         </span>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
+          Pipeline status
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {stages.map((stage, index) => {
+            const isActive = index === activeIndex;
+            const isComplete = index < activeIndex;
+            const dotColor = isFailed && isActive
+              ? "bg-rose-400"
+              : isComplete
+              ? "bg-emerald-400"
+              : isActive
+              ? "bg-amber-400"
+              : "bg-white/20";
+            const textColor = isActive || isComplete ? "text-white" : "text-white/40";
+            return (
+              <div key={stage.key} className="flex items-center gap-2">
+                <span className={`status-dot ${dotColor} ${isActive ? "pulse-soft" : ""}`} />
+                <span className={`text-xs ${textColor}`}>{stage.label}</span>
+                {index < stages.length - 1 && (
+                  <span className="mx-1 h-px w-6 bg-white/10" />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
