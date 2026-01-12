@@ -42,10 +42,8 @@ function resolveSearchBudget(): { max: number; source: string } {
   }
 
   const deployment = (process.env.CONVEX_DEPLOYMENT || "").toLowerCase();
-  const nodeEnv = (process.env.NODE_ENV || "").toLowerCase();
-  const isProd = nodeEnv === "production" ||
-    deployment.startsWith("prod") ||
-    deployment.startsWith("production");
+  const isDev = deployment.startsWith("dev:") || deployment.startsWith("preview:");
+  const isProd = deployment.length > 0 && !isDev;
 
   return {
     max: isProd ? DEFAULT_SEARCH_BUDGET_PROD : DEFAULT_SEARCH_BUDGET_DEV,
