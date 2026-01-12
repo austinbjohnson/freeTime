@@ -33,6 +33,27 @@ interface BrandStats {
   avgDemandLevel?: string;
 }
 
+function countCurrencies(listings: Array<{ currency: string }>): Record<string, number> {
+  return listings.reduce<Record<string, number>>((acc, listing) => {
+    const currency = listing.currency || "USD";
+    acc[currency] = (acc[currency] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function resolveMarketContext(researchResults: ResearchResults) {
+  const currencyCounts =
+    researchResults.currencyCounts ||
+    countCurrencies([...researchResults.listings, ...researchResults.soldListings]);
+  const primaryCurrency =
+    researchResults.primaryCurrency ||
+    Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    "USD";
+  const marketRegion = researchResults.marketRegion || "US";
+
+  return { primaryCurrency, marketRegion, currencyCounts };
+}
+
 /**
  * Stage 3: AI Refinement
  * Synthesizes research results into actionable pricing insights
@@ -56,10 +77,15 @@ RESEARCH RESULTS:
 - Sold Listings Found: {soldCount}
 - Listings: {listings}
 
+MARKET CONTEXT:
+- Region: {marketRegion}
+- Primary currency: {primaryCurrency}
+- Currency mix: {currencyMix}
+
 {historicalContext}
 
 Based on this information, provide a JSON response with:
-1. Suggested price range (low, high, recommended) in USD
+1. Suggested price range (low, high, recommended) in {primaryCurrency}
 2. Market activity assessment (hot/moderate/slow/rare)
 3. Demand level (high/medium/low)
 4. Top 5 most comparable listings with relevance scores (0-1)
@@ -74,7 +100,7 @@ Return ONLY valid JSON in this exact format:
     "low": 0,
     "high": 0,
     "recommended": 0,
-    "currency": "USD"
+    "currency": "{primaryCurrency}"
   },
   "marketActivity": "moderate",
   "demandLevel": "medium",
@@ -82,7 +108,7 @@ Return ONLY valid JSON in this exact format:
     {
       "title": "",
       "price": 0,
-      "currency": "USD",
+      "currency": "{primaryCurrency}",
       "platform": "",
       "url": "",
       "relevanceScore": 0.8
@@ -109,6 +135,8 @@ async function refineWithOpenAI(
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
+  const { primaryCurrency, marketRegion, currencyCounts } = resolveMarketContext(researchResults);
+
   const prompt = REFINEMENT_PROMPT.replace(
     "{extractedData}",
     JSON.stringify(extractedData, null, 2)
@@ -126,6 +154,9 @@ async function refineWithOpenAI(
         2
       )
     )
+    .replace("{marketRegion}", marketRegion)
+    .replaceAll("{primaryCurrency}", primaryCurrency)
+    .replace("{currencyMix}", JSON.stringify(currencyCounts))
     .replace("{historicalContext}", historicalContext);
 
   return withRetry(async () => {
@@ -174,6 +205,8 @@ async function refineWithAnthropic(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
 
+  const { primaryCurrency, marketRegion, currencyCounts } = resolveMarketContext(researchResults);
+
   const prompt = REFINEMENT_PROMPT.replace(
     "{extractedData}",
     JSON.stringify(extractedData, null, 2)
@@ -191,6 +224,9 @@ async function refineWithAnthropic(
         2
       )
     )
+    .replace("{marketRegion}", marketRegion)
+    .replaceAll("{primaryCurrency}", primaryCurrency)
+    .replace("{currencyMix}", JSON.stringify(currencyCounts))
     .replace("{historicalContext}", historicalContext);
 
   return withRetry(async () => {
@@ -236,6 +272,8 @@ function refineWithStatistics(
   extractedData: ExtractedData,
   researchResults: ResearchResults
 ): RefinedFindings {
+  const { primaryCurrency, currencyCounts } = resolveMarketContext(researchResults);
+  const multipleCurrencies = Object.keys(currencyCounts).length > 1;
   const allListings = [
     ...researchResults.listings,
     ...researchResults.soldListings,
@@ -250,7 +288,7 @@ function refineWithStatistics(
         low: 0,
         high: 0,
         recommended: 0,
-        currency: "USD",
+        currency: primaryCurrency,
       },
       marketActivity: "rare",
       demandLevel: "low",
@@ -289,15 +327,18 @@ function refineWithStatistics(
       low,
       high,
       recommended: median,
-      currency: "USD",
+      currency: primaryCurrency,
     },
     marketActivity,
     demandLevel: pricedListings.length >= 5 ? "medium" : "low",
     comparableListings,
     insights: [
       `Found ${pricedListings.length} comparable listings`,
-      `Price range: $${low.toFixed(2)} - $${high.toFixed(2)}`,
-      `Median price: $${median.toFixed(2)}`,
+      `Price range: ${primaryCurrency} ${low.toFixed(2)} - ${primaryCurrency} ${high.toFixed(2)}`,
+      `Median price: ${primaryCurrency} ${median.toFixed(2)}`,
+      multipleCurrencies
+        ? `Currency mix detected: ${Object.keys(currencyCounts).join(", ")}`
+        : `Currency: ${primaryCurrency}`,
       extractedData.brand
         ? `Brand: ${extractedData.brand}`
         : "Brand could not be identified",
@@ -495,4 +536,3 @@ Consider this historical data when making your price recommendations.`;
     }
   },
 });
-

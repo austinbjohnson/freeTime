@@ -136,6 +136,9 @@ export interface ResearchResults {
   brandInfo?: BrandInfo;
   searchQueries: string[]; // Queries used for transparency
   sources: string[]; // URLs searched
+  marketRegion?: string;
+  primaryCurrency?: string;
+  currencyCounts?: Record<string, number>;
 }
 
 // ============================================

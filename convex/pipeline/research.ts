@@ -26,6 +26,70 @@ const DEFAULT_SEARCH_BUDGET_DEV = 1;
 const DEFAULT_SEARCH_BUDGET_PROD = 5;
 const SEARCH_BUDGET_ENV_KEY = "SERPAPI_SEARCH_BUDGET_PER_SCAN";
 
+type MarketRegion = "US" | "CA" | "UK" | "EU" | "AU";
+
+type MarketConfig = {
+  region: MarketRegion;
+  googleDomain: string;
+  googleGl: string;
+  googleHl: string;
+  ebayDomain: string;
+  currency: string;
+};
+
+const MARKET_CONFIGS: Record<MarketRegion, MarketConfig> = {
+  US: {
+    region: "US",
+    googleDomain: "google.com",
+    googleGl: "us",
+    googleHl: "en",
+    ebayDomain: "ebay.com",
+    currency: "USD",
+  },
+  CA: {
+    region: "CA",
+    googleDomain: "google.ca",
+    googleGl: "ca",
+    googleHl: "en",
+    ebayDomain: "ebay.ca",
+    currency: "CAD",
+  },
+  UK: {
+    region: "UK",
+    googleDomain: "google.co.uk",
+    googleGl: "uk",
+    googleHl: "en",
+    ebayDomain: "ebay.co.uk",
+    currency: "GBP",
+  },
+  EU: {
+    region: "EU",
+    googleDomain: "google.com",
+    googleGl: "de",
+    googleHl: "en",
+    ebayDomain: "ebay.de",
+    currency: "EUR",
+  },
+  AU: {
+    region: "AU",
+    googleDomain: "google.com.au",
+    googleGl: "au",
+    googleHl: "en",
+    ebayDomain: "ebay.com.au",
+    currency: "AUD",
+  },
+};
+
+function resolveMarketConfig(): MarketConfig {
+  const raw = (process.env.MARKET_REGION || "US").toUpperCase();
+  if (raw in MARKET_CONFIGS) {
+    return MARKET_CONFIGS[raw as MarketRegion];
+  }
+  return MARKET_CONFIGS.US;
+}
+
+const MARKET = resolveMarketConfig();
+
 type SearchBudget = {
   max: number;
   remaining: number;
@@ -73,7 +137,7 @@ function consumeSearchBudget(budget: SearchBudget, scanId: string, label: string
 
 // Resale platforms with search patterns
 const RESALE_PLATFORMS = {
-  ebay: { domain: "ebay.com", name: "eBay" },
+  ebay: { domain: MARKET.ebayDomain, name: "eBay" },
   poshmark: { domain: "poshmark.com", name: "Poshmark" },
   mercari: { domain: "mercari.com", name: "Mercari" },
   depop: { domain: "depop.com", name: "Depop" },
@@ -612,9 +676,9 @@ function buildSearchQueries(data: ExtractedData, productCategory: string | null)
     const sanitizedCore = sanitizeQuery(coreSearchTerm);
     
     platformSpecific.push({
-      query: `${sanitizedCore} site:ebay.com`,
+      query: `${sanitizedCore} site:${MARKET.ebayDomain}`,
       platform: "eBay",
-      site: "ebay.com",
+      site: MARKET.ebayDomain,
     });
 
     for (const platformKey of targetPlatforms.slice(0, 3)) {
@@ -665,7 +729,7 @@ async function searchWithSerpAPI(
     title: string;
     link: string;
     snippet: string;
-    price?: { extracted?: number; currency?: string };
+    price?: { extracted?: number; currency?: string; raw?: string; text?: string };
   }>;
   shopping?: Array<{
     title: string;
@@ -683,6 +747,9 @@ async function searchWithSerpAPI(
       api_key: apiKey,
       engine: "google",
       num: String(options?.num || 15),
+      google_domain: MARKET.googleDomain,
+      gl: MARKET.googleGl,
+      hl: MARKET.googleHl,
     });
 
     const response = await fetch(`https://serpapi.com/search?${params}`);
@@ -704,7 +771,7 @@ async function searchEbaySold(query: string): Promise<Listing[]> {
     const params = new URLSearchParams({
       api_key: apiKey,
       engine: "ebay",
-      ebay_domain: "ebay.com",
+      ebay_domain: MARKET.ebayDomain,
       _nkw: query,
       LH_Complete: "1",
       LH_Sold: "1",
@@ -718,12 +785,12 @@ async function searchEbaySold(query: string): Promise<Listing[]> {
     const fallbackSearchUrl = buildEbaySoldSearchUrl(query);
 
     for (const item of data.organic_results || []) {
-      const price = item.price?.extracted || item.price?.raw;
-      if (price) {
+      const priceInfo = parsePriceWithCurrency(item.price, MARKET.currency);
+      if (priceInfo.amount !== null) {
         listings.push({
           title: item.title,
-          price: typeof price === "number" ? price : parseFloat(String(price).replace(/[$,]/g, "")),
-          currency: "USD",
+          price: priceInfo.amount,
+          currency: priceInfo.currency,
           platform: "eBay (Sold)",
           url: normalizeEbaySoldUrl(item.link, fallbackSearchUrl, item.title),
           soldDate: item.sold_date,
@@ -737,6 +804,100 @@ async function searchEbaySold(query: string): Promise<Listing[]> {
     console.error("[Research] eBay sold search failed:", error);
     return [];
   }
+}
+
+function parsePriceWithCurrency(
+  price: unknown,
+  fallbackCurrency: string
+): { amount: number | null; currency: string } {
+  if (typeof price === "number") {
+    return { amount: price, currency: fallbackCurrency };
+  }
+  if (typeof price === "string") {
+    return {
+      amount: extractNumericPrice(price),
+      currency: detectCurrencyFromText(price, fallbackCurrency),
+    };
+  }
+  if (!price || typeof price !== "object") {
+    return { amount: null, currency: fallbackCurrency };
+  }
+
+  const priceRecord = price as Record<string, unknown>;
+  const extracted = priceRecord.extracted;
+  const raw = priceRecord.raw ?? priceRecord.value ?? priceRecord.text ?? "";
+  const rawText = typeof raw === "string" ? raw : "";
+  const amount =
+    typeof extracted === "number" ? extracted : extractNumericPrice(rawText);
+  const currency =
+    normalizeCurrencyCode(priceRecord.currency) ??
+    detectCurrencyFromText(rawText, fallbackCurrency);
+
+  return { amount, currency };
+}
+
+function extractNumericPrice(text: string): number | null {
+  const match = text.match(/[\d,.]+/);
+  if (!match) return null;
+  return parseFloat(match[0].replace(/,/g, ""));
+}
+
+function normalizeCurrencyCode(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const upper = raw.trim().toUpperCase();
+  if (upper === "USD" || upper === "US$") return "USD";
+  if (upper === "CAD" || upper === "CA$" || upper === "C$") return "CAD";
+  if (upper === "AUD" || upper === "AU$" || upper === "A$") return "AUD";
+  if (upper === "GBP" || upper === "£") return "GBP";
+  if (upper === "EUR" || upper === "€") return "EUR";
+  return null;
+}
+
+function detectCurrencyFromText(text: string, fallback: string): string {
+  const upper = text.toUpperCase();
+  if (upper.includes("CAD") || upper.includes("CA$") || upper.includes("C$")) {
+    return "CAD";
+  }
+  if (upper.includes("AUD") || upper.includes("AU$") || upper.includes("A$")) {
+    return "AUD";
+  }
+  if (upper.includes("GBP") || text.includes("£")) return "GBP";
+  if (upper.includes("EUR") || text.includes("€")) return "EUR";
+  if (upper.includes("USD") || upper.includes("US$")) return "USD";
+  if (text.includes("$")) return fallback;
+  return fallback;
+}
+
+function inferCurrencyFromUrl(url: string, fallback: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.endsWith(".ca")) return "CAD";
+    if (host.endsWith(".co.uk")) return "GBP";
+    if (host.endsWith(".com.au")) return "AUD";
+    if (host.endsWith(".de") || host.endsWith(".fr") || host.endsWith(".it") || host.endsWith(".es")) {
+      return "EUR";
+    }
+  } catch {
+    return fallback;
+  }
+  return fallback;
+}
+
+function countCurrencies(listings: Listing[]): Record<string, number> {
+  return listings.reduce<Record<string, number>>((acc, listing) => {
+    const currency = listing.currency || "USD";
+    acc[currency] = (acc[currency] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function resolvePrimaryCurrency(counts: Record<string, number>, fallback: string): string {
+  const entries = Object.entries(counts);
+  if (entries.length === 0) {
+    return fallback;
+  }
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries[0][0];
 }
 
 // Search eBay with fallback strategy (specific → broad)
@@ -830,12 +991,13 @@ function parseListingsFromResults(
 
   if (results.shopping) {
     for (const item of results.shopping) {
-      const priceMatch = item.price?.match(/[\d,.]+/);
-      if (priceMatch) {
+      const amount = extractNumericPrice(item.price);
+      if (amount !== null) {
+        const currency = detectCurrencyFromText(item.price, MARKET.currency);
         listings.push({
           title: item.title,
-          price: parseFloat(priceMatch[0].replace(/,/g, "")),
-          currency: "USD",
+          price: amount,
+          currency,
           platform: item.source || "Google Shopping",
           url: item.link,
         });
@@ -854,20 +1016,26 @@ function parseListingsFromResults(
     
     if (matchedPlatform || targetPlatform) {
       let price = 0;
+      let currency = MARKET.currency;
       
       if (item.price?.extracted) {
         price = item.price.extracted;
+        currency =
+          normalizeCurrencyCode(item.price.currency) ??
+          detectCurrencyFromText(item.price.raw || "", MARKET.currency);
       } else {
-        const priceMatch = (item.title + " " + (item.snippet || "")).match(/\$[\d,.]+/);
+        const priceText = item.title + " " + (item.snippet || "");
+        const priceMatch = priceText.match(/[$£€][\d,.]+/);
         if (priceMatch) {
-          price = parseFloat(priceMatch[0].replace(/[$,]/g, ""));
+          price = parseFloat(priceMatch[0].replace(/[$,£€]/g, ""));
+          currency = detectCurrencyFromText(priceMatch[0], MARKET.currency);
         }
       }
 
       listings.push({
         title: item.title,
         price,
-        currency: "USD",
+        currency: inferCurrencyFromUrl(item.link, currency),
         platform: matchedPlatform?.name || targetPlatform || "Unknown",
         url: item.link,
         condition: extractCondition(item.title + " " + (item.snippet || "")),
@@ -884,7 +1052,7 @@ function buildEbaySoldSearchUrl(query: string): string {
     LH_Complete: "1",
     LH_Sold: "1",
   });
-  return `https://www.ebay.com/sch/i.html?${params}`;
+  return `https://www.${MARKET.ebayDomain}/sch/i.html?${params}`;
 }
 
 function normalizeEbaySoldUrl(
@@ -1083,11 +1251,17 @@ export const researchItem = action({
         return relDiff !== 0 ? relDiff : (b.price || 0) - (a.price || 0);
       });
 
+      const currencyCounts = countCurrencies([...uniqueActive, ...uniqueSold]);
+      const primaryCurrency = resolvePrimaryCurrency(currencyCounts, MARKET.currency);
+
       const researchResults: ResearchResults = {
         listings: uniqueActive,
         soldListings: uniqueSold,
         searchQueries: executedQueries,
         sources: [...new Set(sources)].slice(0, 25),
+        marketRegion: MARKET.region,
+        primaryCurrency,
+        currencyCounts,
         brandInfo: extractedData.brand
           ? {
               name: extractedData.brand,

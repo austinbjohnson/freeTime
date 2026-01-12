@@ -337,6 +337,8 @@ struct ScanDetailView: View {
         let distributionTitle = usesSoldDistribution ? "Sold price distribution" : "Active price distribution"
         let distributionPrices = distributionListings.map(\.price).filter { $0 > 0 }
         let distributionCurrency = distributionListings.first?.currency ?? findings.suggestedPriceRange.currency
+        let marketRegion = researchResults?.marketRegion
+        let primaryCurrency = researchResults?.primaryCurrency
         let stats = [
             ("Sold comps", "\(soldCount)"),
             ("Active comps", "\(activeCount)"),
@@ -353,6 +355,20 @@ struct ScanDetailView: View {
                 Spacer()
                 
                 dataQualityBadge(label: quality.label, detail: quality.detail, color: quality.color)
+            }
+            
+            if marketRegion != nil || primaryCurrency != nil {
+                HStack(spacing: 12) {
+                    if let region = marketRegion {
+                        Text("Market \(region)")
+                    }
+                    if let currency = primaryCurrency {
+                        Text("Currency \(currency)")
+                    }
+                }
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color(hex: "8888a0"))
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             
             HStack(spacing: 8) {
@@ -1052,7 +1068,10 @@ struct ScanDetailView: View {
             originalRetailPrice: PriceInfo(amount: 139, currency: "USD", source: "Patagonia"),
             brandInfo: BrandInfo(name: "Patagonia", description: "Outdoor brand known for durable fleece and sustainability.", priceRange: "$$-$$$", founded: nil, website: nil),
             searchQueries: ["Patagonia Synchilla fleece", "Patagonia Snap-T pullover price", "Patagonia fleece resale value"],
-            sources: ["eBay", "Poshmark", "Mercari"]
+            sources: ["eBay", "Poshmark", "Mercari"],
+            marketRegion: "US",
+            primaryCurrency: "USD",
+            currencyCounts: ["USD": 5]
         ),
         refinedFindings: RefinedFindings(
             suggestedPriceRange: PriceRange(low: 45, high: 85, recommended: 65, currency: "USD"),

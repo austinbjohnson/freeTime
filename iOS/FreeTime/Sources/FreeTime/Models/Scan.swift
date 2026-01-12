@@ -106,6 +106,9 @@ struct ResearchResults: Codable {
     var brandInfo: BrandInfo?
     var searchQueries: [String]
     var sources: [String]
+    var marketRegion: String?
+    var primaryCurrency: String?
+    var currencyCounts: [String: Int]?
 }
 
 struct Listing: Codable, Identifiable {
@@ -209,4 +212,3 @@ struct ComparableListing: Codable, Identifiable {
     var url: String
     var relevanceScore: Double
 }
-
