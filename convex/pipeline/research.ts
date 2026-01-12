@@ -22,6 +22,56 @@ import { withRetry, formatUserError } from "./utils";
 // 0.45 = brand + category matches pass, but wrong category (down/puffer) filtered
 // Exact style matches score ~1.0, same category ~0.47, wrong category ~0.0
 const MIN_RELEVANCE_THRESHOLD = 0.45;
+const DEFAULT_SEARCH_BUDGET_DEV = 1;
+const DEFAULT_SEARCH_BUDGET_PROD = 5;
+const SEARCH_BUDGET_ENV_KEY = "SERPAPI_SEARCH_BUDGET_PER_SCAN";
+
+type SearchBudget = {
+  max: number;
+  remaining: number;
+  exhaustedLogged: boolean;
+};
+
+function resolveSearchBudget(): { max: number; source: string } {
+  const raw = process.env[SEARCH_BUDGET_ENV_KEY];
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return { max: Math.floor(parsed), source: "env" };
+    }
+  }
+
+  const deployment = (process.env.CONVEX_DEPLOYMENT || "").toLowerCase();
+  const nodeEnv = (process.env.NODE_ENV || "").toLowerCase();
+  const isProd = nodeEnv === "production" ||
+    deployment.startsWith("prod") ||
+    deployment.startsWith("production");
+
+  return {
+    max: isProd ? DEFAULT_SEARCH_BUDGET_PROD : DEFAULT_SEARCH_BUDGET_DEV,
+    source: isProd ? "prod-default" : "dev-default",
+  };
+}
+
+function createSearchBudget(max: number): SearchBudget {
+  return { max, remaining: max, exhaustedLogged: false };
+}
+
+function consumeSearchBudget(budget: SearchBudget, scanId: string, label: string): boolean {
+  if (budget.remaining <= 0) {
+    if (!budget.exhaustedLogged) {
+      console.warn(
+        `[Research] Search budget exhausted for scan ${scanId} (max ${budget.max}). ` +
+        `Skipping remaining searches (next: ${label}).`
+      );
+      budget.exhaustedLogged = true;
+    }
+    return false;
+  }
+
+  budget.remaining -= 1;
+  return true;
+}
 
 // Resale platforms with search patterns
 const RESALE_PLATFORMS = {
@@ -697,11 +747,16 @@ async function searchEbaySoldWithFallback(
   queries: string[],
   extractedData: ExtractedData,
   productCategory: string | null,
-  gender: "mens" | "womens" | null
+  gender: "mens" | "womens" | null,
+  budget: SearchBudget,
+  scanId: string
 ): Promise<{ listings: Listing[]; queryUsed: string | null; inferredCategory: string | null }> {
   let inferredCategory = productCategory;
   
   for (const query of queries) {
+    if (!consumeSearchBudget(budget, scanId, "eBay sold search")) {
+      break;
+    }
     console.log(`[Research] eBay query: "${query}"`);
     const results = await searchEbaySold(query);
     console.log(`[Research] Raw results: ${results.length}`);
@@ -749,7 +804,9 @@ async function searchEbaySoldWithFallback(
             queries.slice(nextQueryIndex),
             extractedData,
             inferredCategory, // Pass inferred category to next iteration
-            gender
+            gender,
+            budget,
+            scanId
           );
           const combined = [...relevant, ...moreResults.listings];
           const unique = Array.from(new Map(combined.map(l => [l.url, l])).values());
@@ -879,14 +936,19 @@ export const researchItem = action({
   handler: async (ctx, args): Promise<ResearchResults> => {
     const startTime = Date.now();
     const extractedData = args.extractedData as ExtractedData;
+    const scanId = String(args.scanId);
 
     try {
       // Detect product context for filtering
       const productCategory = detectProductCategory(extractedData);
       const gender = detectGender(extractedData);
+
+      const { max: searchBudgetMax, source: searchBudgetSource } = resolveSearchBudget();
+      const searchBudget = createSearchBudget(searchBudgetMax);
       
       console.log(`[Research] Context: category="${productCategory || "unknown"}", gender="${gender || "unknown"}"`);
       console.log(`[Research] Relevance threshold: ${MIN_RELEVANCE_THRESHOLD}`);
+      console.log(`[Research] Search budget: ${searchBudgetMax} (${searchBudgetSource}) for scan ${scanId}`);
 
       // Build queries
       const { general, platformSpecific, ebayQuery } = buildSearchQueries(extractedData, productCategory);
@@ -926,7 +988,7 @@ export const researchItem = action({
       if (ebayQueries.length > 0) {
         console.log(`[Research] eBay strategy: ${ebayQueries.length} queries (specific → broad)`);
         const { listings: ebaySold, queryUsed, inferredCategory } = await searchEbaySoldWithFallback(
-          ebayQueries, extractedData, productCategory, gender
+          ebayQueries, extractedData, productCategory, gender, searchBudget, scanId
         );
         soldListings.push(...ebaySold);
         
@@ -941,6 +1003,9 @@ export const researchItem = action({
 
       // STEP 2: Platform-specific searches (use effective category from eBay inference)
       for (const { query, platform } of platformSpecific) {
+        if (!consumeSearchBudget(searchBudget, scanId, `${platform} search`)) {
+          break;
+        }
         try {
           console.log(`[Research] Searching ${platform}...`);
           const results = await searchWithSerpAPI(query, { num: 10 });
@@ -968,6 +1033,9 @@ export const researchItem = action({
 
       // STEP 3: General searches (use effective category)
       for (const query of general.slice(0, 2)) {
+        if (!consumeSearchBudget(searchBudget, scanId, "general search")) {
+          break;
+        }
         try {
           const results = await searchWithSerpAPI(query);
           const listings = parseListingsFromResults(results);
