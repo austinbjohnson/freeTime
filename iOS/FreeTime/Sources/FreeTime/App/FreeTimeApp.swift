@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct FreeTimeApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var authService = AuthService()
     @StateObject private var convexService = ConvexService()
     @StateObject private var navigationState = AppNavigationState()
@@ -22,6 +23,18 @@ struct FreeTimeApp: App {
                 .environmentObject(authService)
                 .environmentObject(convexService)
                 .environmentObject(navigationState)
+                .onChange(of: scenePhase) { newPhase in
+                    Task { @MainActor in
+                        switch newPhase {
+                        case .active:
+                            convexService.setRealtimeActive(true)
+                        case .inactive, .background:
+                            convexService.setRealtimeActive(false)
+                        @unknown default:
+                            break
+                        }
+                    }
+                }
         }
     }
 }
