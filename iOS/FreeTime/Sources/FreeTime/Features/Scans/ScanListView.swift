@@ -269,6 +269,16 @@ struct ScanCardView: View {
                                 .foregroundColor(Color(hex: "22c55e"))
                             
                             Text(findings.marketActivity.emoji)
+                            
+                            if let label = confidenceLabel(for: findings.confidence) {
+                                Text(label)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(confidenceColor(for: findings.confidence))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(confidenceColor(for: findings.confidence).opacity(0.15))
+                                    .cornerRadius(6)
+                            }
                         }
                     }
                 }
@@ -277,6 +287,30 @@ struct ScanCardView: View {
         }
         .background(Color(hex: "12121a"))
         .cornerRadius(16)
+    }
+
+    private func confidenceLabel(for confidence: Double) -> String? {
+        switch confidence {
+        case 0.75...:
+            return "High"
+        case 0.5..<0.75:
+            return "Med"
+        case 0..<0.5:
+            return "Low"
+        default:
+            return nil
+        }
+    }
+    
+    private func confidenceColor(for confidence: Double) -> Color {
+        switch confidence {
+        case 0.75...:
+            return Color(hex: "22c55e")
+        case 0.5..<0.75:
+            return Color(hex: "f59e0b")
+        default:
+            return Color(hex: "ef4444")
+        }
     }
 }
 
