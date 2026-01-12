@@ -1,5 +1,5 @@
 import SwiftUI
-import AVFoundation
+@preconcurrency import AVFoundation
 import PhotosUI
 
 struct CameraView: View {
@@ -618,6 +618,7 @@ class CameraViewModel: NSObject, ObservableObject {
     // MARK: - Services
     
     let session = AVCaptureSession()
+    private let sessionQueue = DispatchQueue(label: "com.freetime.camera.session", qos: .userInitiated)
     private let visionService = VisionService()
     var convexService: ConvexService?
     var offlineQueueManager: OfflineQueueManager?
@@ -650,50 +651,50 @@ class CameraViewModel: NSObject, ObservableObject {
     // MARK: - Camera Setup
     
     private func setupCamera() {
-        // Run camera setup on background queue to avoid blocking UI
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            self.session.beginConfiguration()
-            self.session.sessionPreset = .photo
+        let session = session
+        sessionQueue.async { [weak self] in
+            session.beginConfiguration()
+            session.sessionPreset = .photo
             
             // Add camera input
             guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
                 print("[Camera] No back camera available")
-                self.session.commitConfiguration()
+                session.commitConfiguration()
                 return
             }
             
             do {
                 let input = try AVCaptureDeviceInput(device: device)
-                if self.session.canAddInput(input) {
-                    self.session.addInput(input)
+                if session.canAddInput(input) {
+                    session.addInput(input)
                 } else {
                     print("[Camera] Cannot add camera input")
-                    self.session.commitConfiguration()
+                    session.commitConfiguration()
                     return
                 }
             } catch {
                 print("[Camera] Error creating input: \(error)")
-                self.session.commitConfiguration()
+                session.commitConfiguration()
                 return
             }
             
             // Add photo output
             let output = AVCapturePhotoOutput()
-            if self.session.canAddOutput(output) {
-                self.session.addOutput(output)
-                self.photoOutput = output
+            if session.canAddOutput(output) {
+                session.addOutput(output)
+                Task { @MainActor in
+                    self?.photoOutput = output
+                }
             } else {
                 print("[Camera] Cannot add photo output")
             }
             
-            self.session.commitConfiguration()
+            session.commitConfiguration()
             
             // Start the session
             print("[Camera] Starting capture session...")
-            self.session.startRunning()
-            print("[Camera] Session running: \(self.session.isRunning)")
+            session.startRunning()
+            print("[Camera] Session running: \(session.isRunning)")
         }
     }
     
