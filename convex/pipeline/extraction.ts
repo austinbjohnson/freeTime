@@ -520,7 +520,7 @@ export const analyzeImage = action({
 });
 
 // Legacy action for backwards compatibility (analyzes single image and updates scan)
-export const extractData = action({
+export const extractData: ReturnType<typeof action> = action({
   args: {
     scanId: v.id("scans"),
     imageStorageId: v.id("_storage"),
@@ -550,7 +550,7 @@ export const extractData = action({
         
         // Resolve brand against our database
         const brandInfo = await ctx.runQuery(internal.brands.resolveBrand, {
-          brandName: brand,
+          brandName: rawBrand,
         });
         
         if (brandInfo.found) {

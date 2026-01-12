@@ -348,7 +348,7 @@ export const resumeAfterClarification = action({
 });
 
 // Process a scan starting from a specific stage (for retries)
-export const processScanFromStage = action({
+export const processScanFromStage: ReturnType<typeof action> = action({
   args: {
     scanId: v.id("scans"),
     startStage: v.union(

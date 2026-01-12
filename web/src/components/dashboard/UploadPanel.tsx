@@ -2,14 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import { api } from "@/lib/convexApi";
-import type { ScanId, StorageId, UserId } from "@/lib/convexTypes";
 
 const MAX_FILES = 6;
 
 type UploadPanelProps = {
-  userId: UserId;
-  onScanCreated?: (scanId: ScanId) => void;
+  userId: string;
+  onScanCreated?: (scanId: string) => void;
 };
 
 type PreviewItem = {
@@ -24,10 +22,10 @@ export function UploadPanel({ userId, onScanCreated }: UploadPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const generateUploadUrl = useMutation(api.scans.generateUploadUrl);
-  const createScan = useMutation(api.scans.createScan);
+  const generateUploadUrl = useMutation("scans:generateUploadUrl" as any);
+  const createScan = useMutation("scans:createScan" as any);
   const processMultiImageScan = useAction(
-    api["pipeline/orchestrator"].processMultiImageScan
+    "pipeline/orchestrator:processMultiImageScan" as any
   );
 
   const fileCountLabel = useMemo(() => {
@@ -71,7 +69,7 @@ export function UploadPanel({ userId, onScanCreated }: UploadPanelProps) {
     setStatus("Preparing upload...");
 
     try {
-      const storageIds: StorageId[] = [];
+      const storageIds: string[] = [];
       for (const [index, file] of files.entries()) {
         setStatus(`Uploading ${index + 1} of ${files.length}...`);
         const uploadUrl = await generateUploadUrl({});
@@ -95,7 +93,7 @@ export function UploadPanel({ userId, onScanCreated }: UploadPanelProps) {
       const scanId = (await createScan({
         userId,
         imageStorageId: storageIds[0],
-      })) as ScanId;
+      })) as string;
 
       onScanCreated?.(scanId);
       setStatus("Processing started. This can take up to 90 seconds.");

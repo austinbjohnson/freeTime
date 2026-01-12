@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
-import { api } from "@/lib/convexApi";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UploadPanel } from "@/components/dashboard/UploadPanel";
 import { ScanList } from "@/components/dashboard/ScanList";
@@ -51,7 +50,7 @@ type Scan = {
 export function Dashboard() {
   const { user, convexUserId, logout } = useAuth();
   const scans = useQuery(
-    api.scans.getUserScans,
+    "scans:getUserScans" as any,
     convexUserId ? { userId: convexUserId } : "skip"
   ) as Scan[] | undefined;
   const [selectedId, setSelectedId] = useState<string | null>(null);

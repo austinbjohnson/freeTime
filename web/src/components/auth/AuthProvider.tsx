@@ -2,8 +2,6 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
-import { api } from "@/lib/convexApi";
-import type { UserId } from "@/lib/convexTypes";
 import {
   clearSession,
   getStoredSession,
@@ -14,7 +12,7 @@ import {
 
 type AuthContextValue = {
   user: WorkOSUser | null;
-  convexUserId: UserId | null;
+  convexUserId: string | null;
   isReady: boolean;
   isSyncing: boolean;
   login: () => void;
@@ -25,15 +23,15 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<WorkOSUser | null>(null);
-  const [convexUserId, setConvexUserId] = useState<UserId | null>(null);
+  const [convexUserId, setConvexUserId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const syncUser = useMutation(api.users.getOrCreateUser);
+  const syncUser = useMutation("users:getOrCreateUser" as any);
 
   useEffect(() => {
     const session = getStoredSession();
     setUser(session?.user ?? null);
-    setConvexUserId((session?.convexUserId as UserId) ?? null);
+    setConvexUserId(session?.convexUserId ?? null);
     setIsReady(true);
   }, []);
 
@@ -54,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isActive) {
           return;
         }
-        const convexId = id as UserId;
+        const convexId = id as string;
         setConvexUserId(convexId);
         storeSession({ convexUserId: convexId });
       })
