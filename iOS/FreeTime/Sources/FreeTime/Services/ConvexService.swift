@@ -175,6 +175,15 @@ class ConvexService: ObservableObject {
 
     // MARK: - Real-time Subscriptions
 
+    func setRealtimeActive(_ isActive: Bool) {
+        if isActive {
+            guard let userId = currentUser?.id else { return }
+            startRealtimeScans(userId: userId)
+        } else {
+            stopRealtimeScans()
+        }
+    }
+
     private func startRealtimeScans(userId: String) {
         if realtimeUserId == userId {
             return
