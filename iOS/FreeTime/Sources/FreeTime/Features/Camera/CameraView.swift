@@ -10,10 +10,9 @@ struct CameraView: View {
     @StateObject private var viewModel = CameraViewModel()
     @State private var showingImagePicker = false
     @State private var selectedItem: PhotosPickerItem?
-    @State private var submissionToast: SubmissionToast?
-    @State private var isToastVisible = false
     @State private var submissionAnimation: SubmissionAnimation?
     @State private var submissionAnimationProgress: CGFloat = 0
+    @State private var isQueueTrayVisible = false
     
     var body: some View {
         ZStack {
@@ -86,17 +85,13 @@ struct CameraView: View {
             }
             
             submissionAnimationOverlay
-            submissionToastOverlay
+            queueChipOverlay
+            queueTrayOverlay
         }
         .onAppear {
             viewModel.checkPermissions()
             viewModel.convexService = convexService
             viewModel.offlineQueueManager = offlineQueueManager
-        }
-        .onChange(of: viewModel.latestSubmittedScanId) { _, newId in
-            guard let newId else { return }
-            showSubmissionToast(for: newId)
-            viewModel.latestSubmittedScanId = nil
         }
         .onChange(of: selectedItem) { _, newItem in
             Task {
@@ -283,18 +278,62 @@ struct CameraView: View {
         return "\(viewModel.capturedImages.count)/5 photos • Tap Done when ready"
     }
     
-    private var submissionToastOverlay: some View {
-        VStack {
-            if isToastVisible, let toast = submissionToast {
-                submissionToastView(toast)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .padding(.top, 60)
-            }
+    private var queueChipOverlay: some View {
+        let queueCount = queueBadgeCount
+        return VStack {
             Spacer()
+            if queueCount > 0 {
+                HStack {
+                    Spacer()
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                            isQueueTrayVisible = true
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "tray.full.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Queue \(queueCount)")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color(hex: "1a1a24").opacity(0.95))
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                    }
+                    .accessibilityLabel("Queue \(queueCount)")
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 140)
+                }
+            }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isToastVisible)
-        .allowsHitTesting(isToastVisible)
-        .padding(.horizontal, 16)
+        .allowsHitTesting(queueCount > 0)
+    }
+    
+    private var queueTrayOverlay: some View {
+        ZStack {
+            if isQueueTrayVisible {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                            isQueueTrayVisible = false
+                        }
+                    }
+                
+                VStack {
+                    Spacer()
+                    queueTrayView
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: isQueueTrayVisible)
     }
     
     private var submissionAnimationOverlay: some View {
@@ -328,57 +367,218 @@ struct CameraView: View {
             submissionAnimation = nil
         }
     }
-    
-    private func showSubmissionToast(for scanId: String) {
-        submissionToast = SubmissionToast(
-            scanId: scanId,
-            title: "Submitted to Scans",
-            message: "Tap to open this scan while you keep capturing."
-        )
-        isToastVisible = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
-            if submissionToast?.scanId == scanId {
-                isToastVisible = false
+
+    private var queueTrayView: some View {
+        let queuedLocal = viewModel.queuedItemCount
+        let offlineQueued = offlineQueueManager.pendingCount
+        let activeScans = convexService.scans
+            .filter { !isTerminalStatus($0.status) }
+            .sorted { $0.createdAt > $1.createdAt }
+        let recentScans = convexService.scans
+            .sorted { $0.createdAt > $1.createdAt }
+            .prefix(6)
+        let completedToday = convexService.scans.filter { scan in
+            scan.status == .completed && Calendar.current.isDateInToday(scan.createdAt)
+        }.count
+
+        return VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Queue")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                    Text("\(activeScans.count) active • \(completedToday) completed today")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "8888a0"))
+                }
+                
+                Spacer()
+                
+                Button {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        isQueueTrayVisible = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "8888a0"))
+                        .frame(width: 32, height: 32)
+                        .background(Color(hex: "1a1a24"))
+                        .clipShape(Circle())
+                }
             }
+            
+            ScrollView {
+                VStack(spacing: 12) {
+                    if queuedLocal > 0 {
+                        queueInfoRow(
+                            icon: "arrow.up.circle.fill",
+                            title: "Uploading queued items",
+                            subtitle: "\(queuedLocal) waiting to start"
+                        )
+                    }
+                    if offlineQueued > 0 {
+                        queueInfoRow(
+                            icon: "wifi.slash",
+                            title: "Offline queue",
+                            subtitle: "\(offlineQueued) ready when back online"
+                        )
+                    }
+                    
+                    ForEach(Array(recentScans), id: \.id) { scan in
+                        Button {
+                            navigationState.selectedTab = .scans
+                            navigationState.requestedScanId = scan.id
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                                isQueueTrayVisible = false
+                            }
+                        } label: {
+                            queueScanRow(scan)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    if queuedLocal == 0 && offlineQueued == 0 && recentScans.isEmpty {
+                        Text("No items in the queue yet.")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(hex: "8888a0"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 12)
+                    }
+                }
+            }
+            .frame(maxHeight: 320)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 22)
+                .fill(Color(hex: "0f1117"))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 20)
+    }
+    
+    private func queueInfoRow(icon: String, title: String, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(Color(hex: "6366f1"))
+                .frame(width: 36, height: 36)
+                .background(Color(hex: "1a1a24"))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "8888a0"))
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(hex: "1a1a24").opacity(0.9))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+    
+    private func queueScanRow(_ scan: Scan) -> some View {
+        HStack(spacing: 12) {
+            CachedAsyncImage(url: URL(string: scan.thumbnailUrl ?? scan.imageUrl ?? "")) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color(hex: "1a1a24"))
+                    .overlay {
+                        Image(systemName: "photo")
+                            .foregroundColor(Color(hex: "8888a0"))
+                    }
+            }
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(scan.extractedData?.brand ?? "Processing item")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                
+                if scan.status.needsClarification {
+                    Text("Needs your input")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(hex: "f59e0b"))
+                } else if let styleNumber = scan.extractedData?.styleNumber {
+                    Text("Style \(styleNumber)")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "8888a0"))
+                } else {
+                    Text(scan.createdAt, style: .time)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "8888a0"))
+                }
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(statusColor(for: scan.status))
+                    .frame(width: 8, height: 8)
+                Text(scan.status.displayName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(Color(hex: "d1d5db"))
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(hex: "1a1a24").opacity(0.9))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+    
+    private func statusColor(for status: ScanStatus) -> Color {
+        switch status {
+        case .uploaded:
+            return Color(hex: "6366f1")
+        case .extracting:
+            return Color(hex: "f59e0b")
+        case .awaitingClarification:
+            return Color(hex: "f59e0b")
+        case .researching:
+            return Color(hex: "38bdf8")
+        case .refining:
+            return Color(hex: "22c55e")
+        case .completed:
+            return Color(hex: "22c55e")
+        case .failed:
+            return Color(hex: "ef4444")
         }
     }
     
-    private func submissionToastView(_ toast: SubmissionToast) -> some View {
-        Button {
-            navigationState.selectedTab = .scans
-            navigationState.requestedScanId = toast.scanId
-            isToastVisible = false
-        } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(toast.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color(hex: "6366f1"))
-                }
-                
-                Text(toast.message)
-                    .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "d1d5db"))
-                
-                Text("View scan")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(hex: "6366f1"))
-            }
-            .padding(14)
-            .background(Color(hex: "12121a"))
-            .cornerRadius(14)
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color(hex: "2a2a34"), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
+    private var queueBadgeCount: Int {
+        let offlineQueued = offlineQueueManager.pendingCount
+        let activeCount = convexService.scans.filter { !isTerminalStatus($0.status) }.count
+        return viewModel.queuedItemCount + offlineQueued + activeCount
+    }
+    
+    private func isTerminalStatus(_ status: ScanStatus) -> Bool {
+        status == .completed || status == .failed
     }
 }
 
@@ -587,13 +787,6 @@ struct SubmissionPayload: Identifiable {
     }
 }
 
-struct SubmissionToast: Identifiable {
-    let id = UUID()
-    let scanId: String
-    let title: String
-    let message: String
-}
-
 struct SubmissionAnimation {
     let thumbnail: UIImage
 }
@@ -613,7 +806,6 @@ class CameraViewModel: NSObject, ObservableObject {
     @Published var errorMessage: String?
     @Published var capturedImages: [CapturedImage] = []
     @Published var queuedItemCount = 0
-    @Published var latestSubmittedScanId: String?
     
     // MARK: - Services
     
@@ -828,7 +1020,6 @@ class CameraViewModel: NSObject, ObservableObject {
             processingStatus = "AI reading tags..."
             let scanId = try await convexService.createScan(imageStorageId: storageIds[0])
             print("[Camera] Created scan: \(scanId)")
-            latestSubmittedScanId = scanId
             
             let processingTask = Task {
                 try await convexService.processMultiImageScan(
