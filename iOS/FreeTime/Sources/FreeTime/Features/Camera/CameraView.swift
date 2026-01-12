@@ -14,6 +14,8 @@ struct CameraView: View {
     @State private var submissionAnimationProgress: CGFloat = 0
     @State private var isQueueTrayVisible = false
     @State private var queueSelectedScan: Scan?
+    private let activeQueueWindow: TimeInterval = 600
+    private let completedQueueWindow: TimeInterval = 300
     
     var body: some View {
         ZStack {
@@ -283,10 +285,14 @@ struct CameraView: View {
     }
     
     private var queueChipOverlay: some View {
-        let queueCount = queueBadgeCount
+        let buckets = queueBuckets
+        let offlineQueued = offlineQueueManager.pendingCount
+        let queueCount = viewModel.queuedItemCount + offlineQueued + buckets.active.count
+        let hasQueueItems = queueCount > 0 || !buckets.completed.isEmpty
+        let queueLabel = queueCount > 0 ? "Queue \(queueCount)" : "Queue"
         return VStack {
             Spacer()
-            if queueCount > 0 {
+            if hasQueueItems {
                 HStack {
                     Spacer()
                     Button {
@@ -297,7 +303,7 @@ struct CameraView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "tray.full.fill")
                                 .font(.system(size: 14, weight: .semibold))
-                            Text("Queue \(queueCount)")
+                            Text(queueLabel)
                                 .font(.system(size: 14, weight: .semibold))
                         }
                         .foregroundColor(.white)
@@ -310,13 +316,13 @@ struct CameraView: View {
                                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
                         )
                     }
-                    .accessibilityLabel("Queue \(queueCount)")
+                    .accessibilityLabel(queueLabel)
                     .padding(.trailing, 16)
                     .padding(.bottom, 140)
                 }
             }
         }
-        .allowsHitTesting(queueCount > 0)
+        .allowsHitTesting(hasQueueItems)
     }
     
     private var queueTrayOverlay: some View {
@@ -375,12 +381,9 @@ struct CameraView: View {
     private var queueTrayView: some View {
         let queuedLocal = viewModel.queuedItemCount
         let offlineQueued = offlineQueueManager.pendingCount
-        let cutoff = Date().addingTimeInterval(-600)
-        let recentScans = convexService.scans
-            .filter { $0.createdAt >= cutoff }
-            .sorted { $0.createdAt > $1.createdAt }
-        let activeRecentScans = recentScans.filter { !isCompletedStatus($0.status) }
-        let completedRecentScans = recentScans.filter { isCompletedStatus($0.status) }
+        let buckets = queueBuckets
+        let activeRecentScans = buckets.active
+        let completedRecentScans = buckets.completed
         let queueScans = activeRecentScans + completedRecentScans
 
         return VStack(spacing: 16) {
@@ -389,7 +392,7 @@ struct CameraView: View {
                     Text("Queue")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(.white)
-                    Text("\(activeRecentScans.count) active • \(completedRecentScans.count) completed (10m)")
+                    Text("\(activeRecentScans.count) active • \(completedRecentScans.count) completed (5m)")
                         .font(.system(size: 12))
                         .foregroundColor(Color(hex: "8888a0"))
                 }
@@ -440,7 +443,7 @@ struct CameraView: View {
                     }
 
                     if queuedLocal == 0 && offlineQueued == 0 && queueScans.isEmpty {
-                        Text("No scans in the last 10 minutes.")
+                        Text("No active scans in the last 10 minutes.")
                             .font(.system(size: 13))
                             .foregroundColor(Color(hex: "8888a0"))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -576,11 +579,17 @@ struct CameraView: View {
         queueSelectedScan = scan
     }
     
-    private var queueBadgeCount: Int {
-        let offlineQueued = offlineQueueManager.pendingCount
-        let cutoff = Date().addingTimeInterval(-600)
-        let recentCount = convexService.scans.filter { $0.createdAt >= cutoff }.count
-        return viewModel.queuedItemCount + offlineQueued + recentCount
+    private var queueBuckets: (active: [Scan], completed: [Scan]) {
+        let now = Date()
+        let activeCutoff = now.addingTimeInterval(-activeQueueWindow)
+        let completedCutoff = now.addingTimeInterval(-completedQueueWindow)
+        let active = convexService.scans
+            .filter { $0.createdAt >= activeCutoff && !isCompletedStatus($0.status) }
+            .sorted { $0.createdAt > $1.createdAt }
+        let completed = convexService.scans
+            .filter { $0.createdAt >= completedCutoff && isCompletedStatus($0.status) }
+            .sorted { $0.createdAt > $1.createdAt }
+        return (active, completed)
     }
     
     private func isCompletedStatus(_ status: ScanStatus) -> Bool {
