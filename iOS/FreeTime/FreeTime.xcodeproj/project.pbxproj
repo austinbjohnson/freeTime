@@ -8,14 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		00074F68F778AF07545174D3 /* FreeTimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC6197526E5D4553FA4A734E /* FreeTimeApp.swift */; };
-		A7B8C9D0E1F2A3B4C5D6E7F8 /* AppNavigationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B8C9D0E1F2A3B4C5D6E7F9 /* AppNavigationState.swift */; };
 		018C790C58BDDB88C19F3803 /* ConvexService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C910863456D9CBC2C4CF6E6E /* ConvexService.swift */; };
-		A4B5C6D7E8F90123456789AB /* ConvexRealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90123456789AC /* ConvexRealtimeClient.swift */; };
+		051D75F4A4BEABE590CF2442 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AB20895A7642539383299D1 /* NetworkMonitor.swift */; };
+		0967ADAF230BC2CE99417868 /* AppNavigationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C434EA25A4445D79581EF37 /* AppNavigationState.swift */; };
+		2B1581BBCA8F373B50E60C89 /* OfflineSubmissionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D3F5048358116A83189E5B /* OfflineSubmissionStore.swift */; };
 		2C7983986A7988D20CF4AF9A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */; };
+		3884B63425388D3991243B76 /* ConvexRealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEA13B5ADDEEFAFB4C47E8BE /* ConvexRealtimeClient.swift */; };
 		4094B7C0077165F358DDD67B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */; };
 		576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4404FD99B4D6E383A2063FDD /* MainTabView.swift */; };
 		5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E401DC467440318E6A2B87 /* AuthService.swift */; };
 		675504F9E1CEBF59099524A5 /* ScanDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D360E4762528815F579E1E /* ScanDetailView.swift */; };
+		6CBBF1606638830C8AADAD1C /* ScanCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8179A52ADA6B8BDC65C25A6 /* ScanCacheStore.swift */; };
 		7CAED787D5FEB22D5FB43A8C /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52024E5F2B146E1EEE8DFA0C /* CachedAsyncImage.swift */; };
 		94A8D05FCC3D6FBC6986FB3C /* Scan.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DE599933A0AE725725FD5E /* Scan.swift */; };
 		BE1E7A5741B284B4E20ABF93 /* VisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 397872C61E4D084B9B91C503 /* VisionService.swift */; };
@@ -23,6 +26,7 @@
 		C324723E3DD095D1EEA339A7 /* ImageCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1F560BF5BC286F3D2EC3B5 /* ImageCacheService.swift */; };
 		C5FB78A6368DA628AD313F04 /* ClarificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEADBC78BD616AE746DAE6B5 /* ClarificationView.swift */; };
 		D0ED05A6E0ED1E6D80866298 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4CB0E6FD98E2465903A51E6 /* LoginView.swift */; };
+		E4C2B66F3F412217CD78C48D /* OfflineQueueManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 552A9D86D89C2B1BEABC2C9D /* OfflineQueueManager.swift */; };
 		FB17DCA7A7DFF97C1982F0E7 /* ScanListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E688C9F8012269D85D230B42 /* ScanListView.swift */; };
 		FDCB1A94BE17ED02DD5A98C4 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFAE0C44E0209D4C95ECD310 /* CameraView.swift */; };
 /* End PBXBuildFile section */
@@ -36,17 +40,21 @@
 		46D068E7B558444DDDF59FEC /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		4A95E9871B8DA4D35925E8B8 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		52024E5F2B146E1EEE8DFA0C /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
+		552A9D86D89C2B1BEABC2C9D /* OfflineQueueManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineQueueManager.swift; sourceTree = "<group>"; };
+		6AB20895A7642539383299D1 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		7C434EA25A4445D79581EF37 /* AppNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationState.swift; sourceTree = "<group>"; };
 		8D1F560BF5BC286F3D2EC3B5 /* ImageCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCacheService.swift; sourceTree = "<group>"; };
 		9163F1C7563F75C94CC6F886 /* FreeTime.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FreeTime.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6E401DC467440318E6A2B87 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		A9D70559F292DA3E3D33EAD8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		A7B8C9D0E1F2A3B4C5D6E7F9 /* AppNavigationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationState.swift; sourceTree = "<group>"; };
-		A4B5C6D7E8F90123456789AC /* ConvexRealtimeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexRealtimeClient.swift; sourceTree = "<group>"; };
+		C8D3F5048358116A83189E5B /* OfflineSubmissionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineSubmissionStore.swift; sourceTree = "<group>"; };
 		C910863456D9CBC2C4CF6E6E /* ConvexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexService.swift; sourceTree = "<group>"; };
 		CC6197526E5D4553FA4A734E /* FreeTimeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeTimeApp.swift; sourceTree = "<group>"; };
+		D8179A52ADA6B8BDC65C25A6 /* ScanCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanCacheStore.swift; sourceTree = "<group>"; };
 		DC98318972295F8445DAE5E4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E4CB0E6FD98E2465903A51E6 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		E688C9F8012269D85D230B42 /* ScanListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanListView.swift; sourceTree = "<group>"; };
+		EEA13B5ADDEEFAFB4C47E8BE /* ConvexRealtimeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexRealtimeClient.swift; sourceTree = "<group>"; };
 		EFAE0C44E0209D4C95ECD310 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		F5D360E4762528815F579E1E /* ScanDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanDetailView.swift; sourceTree = "<group>"; };
 		F6DE599933A0AE725725FD5E /* Scan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scan.swift; sourceTree = "<group>"; };
@@ -101,7 +109,7 @@
 		64A02E3AADCC09DF1B18B65F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				A7B8C9D0E1F2A3B4C5D6E7F9 /* AppNavigationState.swift */,
+				7C434EA25A4445D79581EF37 /* AppNavigationState.swift */,
 				CC6197526E5D4553FA4A734E /* FreeTimeApp.swift */,
 			);
 			path = App;
@@ -131,9 +139,13 @@
 			isa = PBXGroup;
 			children = (
 				A6E401DC467440318E6A2B87 /* AuthService.swift */,
-				A4B5C6D7E8F90123456789AC /* ConvexRealtimeClient.swift */,
+				EEA13B5ADDEEFAFB4C47E8BE /* ConvexRealtimeClient.swift */,
 				C910863456D9CBC2C4CF6E6E /* ConvexService.swift */,
 				8D1F560BF5BC286F3D2EC3B5 /* ImageCacheService.swift */,
+				6AB20895A7642539383299D1 /* NetworkMonitor.swift */,
+				552A9D86D89C2B1BEABC2C9D /* OfflineQueueManager.swift */,
+				C8D3F5048358116A83189E5B /* OfflineSubmissionStore.swift */,
+				D8179A52ADA6B8BDC65C25A6 /* ScanCacheStore.swift */,
 				397872C61E4D084B9B91C503 /* VisionService.swift */,
 			);
 			path = Services;
@@ -252,18 +264,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0967ADAF230BC2CE99417868 /* AppNavigationState.swift in Sources */,
 				5D69F1703DC73EFD07B19C44 /* AuthService.swift in Sources */,
-				A7B8C9D0E1F2A3B4C5D6E7F8 /* AppNavigationState.swift in Sources */,
-				A4B5C6D7E8F90123456789AB /* ConvexRealtimeClient.swift in Sources */,
 				7CAED787D5FEB22D5FB43A8C /* CachedAsyncImage.swift in Sources */,
 				FDCB1A94BE17ED02DD5A98C4 /* CameraView.swift in Sources */,
 				C5FB78A6368DA628AD313F04 /* ClarificationView.swift in Sources */,
+				3884B63425388D3991243B76 /* ConvexRealtimeClient.swift in Sources */,
 				018C790C58BDDB88C19F3803 /* ConvexService.swift in Sources */,
 				00074F68F778AF07545174D3 /* FreeTimeApp.swift in Sources */,
 				C324723E3DD095D1EEA339A7 /* ImageCacheService.swift in Sources */,
 				D0ED05A6E0ED1E6D80866298 /* LoginView.swift in Sources */,
 				576E016C4D94D8B66EB22D7E /* MainTabView.swift in Sources */,
+				051D75F4A4BEABE590CF2442 /* NetworkMonitor.swift in Sources */,
+				E4C2B66F3F412217CD78C48D /* OfflineQueueManager.swift in Sources */,
+				2B1581BBCA8F373B50E60C89 /* OfflineSubmissionStore.swift in Sources */,
 				94A8D05FCC3D6FBC6986FB3C /* Scan.swift in Sources */,
+				6CBBF1606638830C8AADAD1C /* ScanCacheStore.swift in Sources */,
 				675504F9E1CEBF59099524A5 /* ScanDetailView.swift in Sources */,
 				FB17DCA7A7DFF97C1982F0E7 /* ScanListView.swift in Sources */,
 				BE57D16F95DBBCBA7E923547 /* User.swift in Sources */,

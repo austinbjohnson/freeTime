@@ -11,6 +11,9 @@ class ConvexService: ObservableObject {
     private let session: URLSession
     private var realtimeClient: ConvexRealtimeClient?
     private var realtimeUserId: String?
+    private var realtimeEnabled = false
+    private var networkMonitorCancellable: AnyCancellable?
+    private let scanCache = ScanCacheStore.shared
     
     // MARK: - Published State
     
@@ -18,6 +21,7 @@ class ConvexService: ObservableObject {
     @Published var scans: [Scan] = []
     @Published var isLoading = false
     @Published var error: ConvexError?
+    @Published var isOffline = false
     
     // MARK: - Initialization
     
@@ -37,6 +41,26 @@ class ConvexService: ObservableObject {
         config.timeoutIntervalForRequest = 120  // Pipeline can take 60-90 seconds
         config.timeoutIntervalForResource = 180
         self.session = URLSession(configuration: config)
+    }
+
+    func attachNetworkMonitor(_ monitor: NetworkMonitor) {
+        networkMonitorCancellable = monitor.$isConnected
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isConnected in
+                guard let self else { return }
+                let wasOffline = self.isOffline
+                self.isOffline = !isConnected
+                if isConnected && wasOffline {
+                    Task {
+                        try? await self.fetchUserScans()
+                    }
+                    if self.realtimeEnabled, let userId = self.currentUser?.id {
+                        self.startRealtimeScans(userId: userId)
+                    }
+                } else if !isConnected {
+                    self.loadCachedScans()
+                }
+            }
     }
     
     // MARK: - User Management
@@ -58,7 +82,10 @@ class ConvexService: ObservableObject {
                 let userData = try JSONSerialization.data(withJSONObject: user)
                 let decodedUser = try JSONDecoder().decode(User.self, from: userData)
                 self.currentUser = decodedUser
-                startRealtimeScans(userId: decodedUser.id)
+                loadCachedScans()
+                if !isOffline {
+                    startRealtimeScans(userId: decodedUser.id)
+                }
                 return decodedUser
             }
         }
@@ -159,6 +186,11 @@ class ConvexService: ObservableObject {
         guard let user = currentUser else {
             throw ConvexError.notAuthenticated
         }
+
+        if isOffline {
+            scans = scanCache.loadScans(userId: user.id)
+            return
+        }
         
         isLoading = true
         defer { isLoading = false }
@@ -169,15 +201,18 @@ class ConvexService: ObservableObject {
             let data = try JSONSerialization.data(withJSONObject: scansArray)
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .millisecondsSince1970
-            self.scans = try decoder.decode([Scan].self, from: data)
+            let decoded = try decoder.decode([Scan].self, from: data)
+            self.scans = decoded
+            scanCache.saveScans(decoded, userId: user.id)
         }
     }
 
     // MARK: - Real-time Subscriptions
 
     func setRealtimeActive(_ isActive: Bool) {
+        realtimeEnabled = isActive
         if isActive {
-            guard let userId = currentUser?.id else { return }
+            guard !isOffline, let userId = currentUser?.id else { return }
             startRealtimeScans(userId: userId)
         } else {
             stopRealtimeScans()
@@ -226,9 +261,21 @@ class ConvexService: ObservableObject {
             let data = try JSONSerialization.data(withJSONObject: scansArray)
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .millisecondsSince1970
-            scans = try decoder.decode([Scan].self, from: data)
+            let decoded = try decoder.decode([Scan].self, from: data)
+            scans = decoded
+            if let userId = currentUser?.id {
+                scanCache.saveScans(decoded, userId: userId)
+            }
         } catch {
             self.error = .invalidResponse
+        }
+    }
+
+    private func loadCachedScans() {
+        guard let userId = currentUser?.id else { return }
+        let cached = scanCache.loadScans(userId: userId)
+        if !cached.isEmpty {
+            scans = cached
         }
     }
     
@@ -250,6 +297,9 @@ class ConvexService: ObservableObject {
     func deleteScan(scanId: String) async throws {
         _ = try await mutation("scans:deleteScan", args: ["scanId": scanId])
         scans.removeAll { $0.id == scanId }
+        if let userId = currentUser?.id {
+            scanCache.saveScans(scans, userId: userId)
+        }
     }
     
     // MARK: - Clarification
