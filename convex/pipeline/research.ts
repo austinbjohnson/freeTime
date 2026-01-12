@@ -749,7 +749,8 @@ async function searchEbaySoldWithFallback(
   productCategory: string | null,
   gender: "mens" | "womens" | null,
   budget: SearchBudget,
-  scanId: string
+  scanId: string,
+  executedQueries: string[]
 ): Promise<{ listings: Listing[]; queryUsed: string | null; inferredCategory: string | null }> {
   let inferredCategory = productCategory;
   
@@ -757,6 +758,7 @@ async function searchEbaySoldWithFallback(
     if (!consumeSearchBudget(budget, scanId, "eBay sold search")) {
       break;
     }
+    executedQueries.push(query);
     console.log(`[Research] eBay query: "${query}"`);
     const results = await searchEbaySold(query);
     console.log(`[Research] Raw results: ${results.length}`);
@@ -806,7 +808,8 @@ async function searchEbaySoldWithFallback(
             inferredCategory, // Pass inferred category to next iteration
             gender,
             budget,
-            scanId
+            scanId,
+            executedQueries
           );
           const combined = [...relevant, ...moreResults.listings];
           const unique = Array.from(new Map(combined.map(l => [l.url, l])).values());
@@ -953,6 +956,7 @@ export const researchItem = action({
       // Build queries
       const { general, platformSpecific, ebayQuery } = buildSearchQueries(extractedData, productCategory);
       const allQueries = [...general, ...platformSpecific.map(p => p.query)];
+      const executedQueries: string[] = [];
 
       if (allQueries.length === 0) {
         throw new Error("Not enough data to build search queries");
@@ -988,7 +992,13 @@ export const researchItem = action({
       if (ebayQueries.length > 0) {
         console.log(`[Research] eBay strategy: ${ebayQueries.length} queries (specific → broad)`);
         const { listings: ebaySold, queryUsed, inferredCategory } = await searchEbaySoldWithFallback(
-          ebayQueries, extractedData, productCategory, gender, searchBudget, scanId
+          ebayQueries,
+          extractedData,
+          productCategory,
+          gender,
+          searchBudget,
+          scanId,
+          executedQueries
         );
         soldListings.push(...ebaySold);
         
@@ -1006,6 +1016,7 @@ export const researchItem = action({
         if (!consumeSearchBudget(searchBudget, scanId, `${platform} search`)) {
           break;
         }
+        executedQueries.push(query);
         try {
           console.log(`[Research] Searching ${platform}...`);
           const results = await searchWithSerpAPI(query, { num: 10 });
@@ -1036,6 +1047,7 @@ export const researchItem = action({
         if (!consumeSearchBudget(searchBudget, scanId, "general search")) {
           break;
         }
+        executedQueries.push(query);
         try {
           const results = await searchWithSerpAPI(query);
           const listings = parseListingsFromResults(results);
@@ -1076,7 +1088,7 @@ export const researchItem = action({
       const researchResults: ResearchResults = {
         listings: uniqueActive,
         soldListings: uniqueSold,
-        searchQueries: allQueries,
+        searchQueries: executedQueries,
         sources: [...new Set(sources)].slice(0, 25),
         brandInfo: extractedData.brand
           ? {
@@ -1102,7 +1114,7 @@ export const researchItem = action({
         details: {
           activeListings: uniqueActive.length,
           soldListings: uniqueSold.length,
-          queriesRun: allQueries.length,
+          queriesRun: executedQueries.length,
           detectedCategory: productCategory,
           effectiveCategory: effectiveCategory,
           gender,
