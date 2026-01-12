@@ -749,6 +749,15 @@
     function logData(label, value) {
       log(`  ${label}: ${JSON.stringify(value)}`, 'data');
     }
+
+    function formatCurrency(amount, currency) {
+      const code = currency || 'USD';
+      try {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: code }).format(amount);
+      } catch {
+        return `${code} ${amount}`;
+      }
+    }
     
     // Initialize Convex
     async function initConvex() {
@@ -929,8 +938,9 @@
           if (rr.soldListings?.length > 0) {
             const prices = rr.soldListings.filter(l => l.price > 0).map(l => l.price);
             if (prices.length > 0) {
-              logData('Sold Price Range', `$${Math.min(...prices)} - $${Math.max(...prices)}`);
-              logData('Sold Avg Price', `$${(prices.reduce((a,b) => a+b, 0) / prices.length).toFixed(2)}`);
+              const currency = rr.soldListings.find(l => l.currency)?.currency || 'USD';
+              logData('Sold Price Range', `${formatCurrency(Math.min(...prices), currency)} - ${formatCurrency(Math.max(...prices), currency)}`);
+              logData('Sold Avg Price', `${formatCurrency((prices.reduce((a,b) => a+b, 0) / prices.length), currency)}`);
             }
           }
           
@@ -952,8 +962,9 @@
           logData('Confidence', `${(rf.confidence * 100).toFixed(0)}%`);
           if (rf.brandTier) logData('Brand Tier', rf.brandTier);
           if (rf.suggestedPriceRange) {
-            logData('Price Range', `$${rf.suggestedPriceRange.low} - $${rf.suggestedPriceRange.high}`);
-            logData('Recommended', `$${rf.suggestedPriceRange.recommended}`);
+            const currency = rf.suggestedPriceRange.currency || 'USD';
+            logData('Price Range', `${formatCurrency(rf.suggestedPriceRange.low, currency)} - ${formatCurrency(rf.suggestedPriceRange.high, currency)}`);
+            logData('Recommended', `${formatCurrency(rf.suggestedPriceRange.recommended, currency)}`);
           }
         }
         
@@ -981,8 +992,8 @@
       const priceRecommended = document.getElementById('price-recommended');
       if (result.refinedFindings?.suggestedPriceRange) {
         const range = result.refinedFindings.suggestedPriceRange;
-        priceRange.textContent = `$${range.low.toFixed(2)} - $${range.high.toFixed(2)}`;
-        priceRecommended.textContent = `Recommended: $${range.recommended.toFixed(2)}`;
+        priceRange.textContent = `${formatCurrency(range.low, range.currency)} - ${formatCurrency(range.high, range.currency)}`;
+        priceRecommended.textContent = `Recommended: ${formatCurrency(range.recommended, range.currency)}`;
       }
       
       // Image type badge
@@ -1029,6 +1040,12 @@
       
       // Research stats
       const researchStats = document.getElementById('research-stats');
+      const regionStat = rr.marketRegion
+        ? `<div class="stat-item"><div class="stat-value">${rr.marketRegion}</div><div class="stat-label">Market</div></div>`
+        : '';
+      const currencyStat = rr.primaryCurrency
+        ? `<div class="stat-item"><div class="stat-value">${rr.primaryCurrency}</div><div class="stat-label">Currency</div></div>`
+        : '';
       researchStats.innerHTML = `
         <div class="stat-item">
           <div class="stat-value">${rr.listings?.length || 0}</div>
@@ -1042,6 +1059,8 @@
           <div class="stat-value">${rr.searchQueries?.length || 0}</div>
           <div class="stat-label">Queries</div>
         </div>
+        ${regionStat}
+        ${currencyStat}
       `;
       
       // Search queries
@@ -1067,7 +1086,7 @@
           item.className = 'listing-item';
           item.innerHTML = `
             <span class="listing-title" title="${listing.title}">${listing.title}</span>
-            <span class="listing-price">$${listing.price.toFixed(0)}</span>
+            <span class="listing-price">${formatCurrency(listing.price, listing.currency)}</span>
             <span class="listing-platform">${listing.platform}</span>
           `;
           soldListings.appendChild(item);
