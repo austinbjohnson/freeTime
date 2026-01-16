@@ -1047,11 +1047,25 @@ class CameraViewModel: NSObject, ObservableObject {
             let scanId = try await convexService.createScan(imageStorageId: storageIds[0])
             currentSubmissionScanId = scanId
             print("[Camera] Created scan: \(scanId)")
+
+            var scanImageIds: [String] = []
+            for storageId in storageIds {
+                do {
+                    let scanImageId = try await convexService.addScanImage(
+                        scanId: scanId,
+                        imageStorageId: storageId
+                    )
+                    scanImageIds.append(scanImageId)
+                } catch {
+                    print("[Camera] Failed to attach scan image: \(error)")
+                }
+            }
             
             let processingTask = Task {
                 try await convexService.processMultiImageScan(
                     scanId: scanId,
                     imageStorageIds: storageIds,
+                    scanImageIds: scanImageIds.count == storageIds.count ? scanImageIds : nil,
                     onDeviceHints: allHints.isEmpty ? nil : Array(Set(allHints))
                 )
             }

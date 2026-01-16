@@ -78,9 +78,22 @@ final class OfflineQueueManager: ObservableObject {
             }
             
             let scanId = try await convexService.createScan(imageStorageId: storageIds[0])
+            var scanImageIds: [String] = []
+            for storageId in storageIds {
+                do {
+                    let scanImageId = try await convexService.addScanImage(
+                        scanId: scanId,
+                        imageStorageId: storageId
+                    )
+                    scanImageIds.append(scanImageId)
+                } catch {
+                    print("[OfflineQueue] Failed to attach scan image: \(error)")
+                }
+            }
             try await convexService.processMultiImageScan(
                 scanId: scanId,
                 imageStorageIds: storageIds,
+                scanImageIds: scanImageIds.count == storageIds.count ? scanImageIds : nil,
                 onDeviceHints: submission.hints.isEmpty ? nil : submission.hints
             )
             

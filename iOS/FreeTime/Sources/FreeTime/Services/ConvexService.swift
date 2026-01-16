@@ -167,11 +167,20 @@ class ConvexService: ObservableObject {
     }
     
     /// Start processing a scan with multiple images
-    func processMultiImageScan(scanId: String, imageStorageIds: [String], onDeviceHints: [String]? = nil) async throws {
+    func processMultiImageScan(
+        scanId: String,
+        imageStorageIds: [String],
+        scanImageIds: [String]? = nil,
+        onDeviceHints: [String]? = nil
+    ) async throws {
         var args: [String: Any] = [
             "scanId": scanId,
             "imageStorageIds": imageStorageIds
         ]
+
+        if let scanImageIds {
+            args["scanImageIds"] = scanImageIds
+        }
         
         if let hints = onDeviceHints {
             args["onDeviceHints"] = hints
@@ -179,6 +188,43 @@ class ConvexService: ObservableObject {
         
         // Uses the multi-image pipeline action
         _ = try await action("pipeline/orchestrator:processMultiImageScan", args: args)
+    }
+
+    /// Attach an uploaded image to an existing scan
+    func addScanImage(
+        scanId: String,
+        imageStorageId: String,
+        thumbnailStorageId: String? = nil
+    ) async throws -> String {
+        var args: [String: Any] = [
+            "scanId": scanId,
+            "imageStorageId": imageStorageId
+        ]
+
+        if let thumbnailStorageId {
+            args["thumbnailStorageId"] = thumbnailStorageId
+        }
+
+        let result = try await mutation("scans:addScanImage", args: args)
+        guard let scanImageId = result as? String else {
+            throw ConvexError.invalidResponse
+        }
+
+        return scanImageId
+    }
+
+    /// Fetch all images for a scan
+    func fetchScanImages(scanId: String) async throws -> [ScanImage] {
+        let result = try await query("scans:getScanImages", args: ["scanId": scanId])
+
+        guard let imagesArray = result as? [[String: Any]] else {
+            return []
+        }
+
+        let data = try JSONSerialization.data(withJSONObject: imagesArray)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .millisecondsSince1970
+        return try decoder.decode([ScanImage].self, from: data)
     }
     
     /// Fetch all scans for the current user

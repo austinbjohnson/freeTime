@@ -31,6 +31,32 @@ struct Scan: Identifiable, Codable {
     }
 }
 
+struct ScanImage: Identifiable, Codable {
+    let id: String
+    let scanId: String
+    let imageStorageId: String
+    let thumbnailStorageId: String?
+    let imageType: String
+    let processed: Bool
+    let errorMessage: String?
+    let imageUrl: String?
+    let thumbnailUrl: String?
+    let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id = "_id"
+        case scanId
+        case imageStorageId
+        case thumbnailStorageId
+        case imageType
+        case processed
+        case errorMessage
+        case imageUrl
+        case thumbnailUrl
+        case createdAt = "_creationTime"
+    }
+}
+
 enum ScanStatus: String, Codable {
     case uploaded
     case extracting
