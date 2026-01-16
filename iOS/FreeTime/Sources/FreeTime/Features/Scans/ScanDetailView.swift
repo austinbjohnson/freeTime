@@ -8,6 +8,9 @@ struct ScanDetailView: View {
     @State private var customAnswer = ""
     @State private var showCustomInput = false
     @State private var isPriceExplanationExpanded = false
+    @State private var scanImages: [ScanImage] = []
+    @State private var selectedImage: ScanImageDisplay?
+    @State private var isLoadingImages = false
     @FocusState private var isCustomInputFocused: Bool
     
     private var displayScan: Scan {
@@ -90,6 +93,12 @@ struct ScanDetailView: View {
                     .foregroundColor(Color(hex: "6366f1"))
                 }
             }
+            .fullScreenCover(item: $selectedImage) { image in
+                ScanImageZoomView(image: image)
+            }
+            .task(id: scan.id) {
+                await loadScanImages()
+            }
         }
     }
     
@@ -97,23 +106,99 @@ struct ScanDetailView: View {
     
     private var scanHeader: some View {
         VStack(spacing: 16) {
-            CachedAsyncImage(url: URL(string: displayScan.imageUrl ?? "")) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } placeholder: {
-                Rectangle()
-                    .fill(Color(hex: "1a1a24"))
-                    .aspectRatio(3/4, contentMode: .fit)
-                    .overlay {
-                        ProgressView()
-                    }
-            }
-            .cornerRadius(16)
+            scanImageCarousel
             
             scanSummaryCard
         }
         .padding(.horizontal)
+    }
+
+    private var scanImageCarousel: some View {
+        let images = galleryImages
+        return Group {
+            if images.isEmpty {
+                scanImagePlaceholder
+            } else {
+                TabView {
+                    ForEach(images) { image in
+                        Button {
+                            selectedImage = image
+                        } label: {
+                            CachedAsyncImage(url: image.url) { loaded in
+                                loaded
+                                    .resizable()
+                                    .scaledToFill()
+                            } placeholder: {
+                                Rectangle()
+                                    .fill(Color(hex: "1a1a24"))
+                                    .overlay {
+                                        ProgressView()
+                                    }
+                            }
+                            .frame(height: 180)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .frame(height: 180)
+                .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .automatic : .never))
+            }
+        }
+    }
+
+    private var scanImagePlaceholder: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(Color(hex: "1a1a24"))
+            .frame(height: 180)
+            .overlay {
+                if isLoadingImages {
+                    ProgressView()
+                } else {
+                    Text("No images available")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color(hex: "6b7280"))
+                }
+            }
+    }
+
+    private var galleryImages: [ScanImageDisplay] {
+        let sortedImages = scanImages.sorted { $0.createdAt < $1.createdAt }
+        let mapped = sortedImages.compactMap { image -> ScanImageDisplay? in
+            let urlString = image.imageUrl ?? image.thumbnailUrl
+            guard let urlString, let url = URL(string: urlString) else { return nil }
+            let thumbnailUrl = image.thumbnailUrl.flatMap(URL.init(string:))
+            return ScanImageDisplay(id: image.id, url: url, thumbnailUrl: thumbnailUrl)
+        }
+
+        if !mapped.isEmpty {
+            return mapped
+        }
+
+        let fallbackUrlString = displayScan.imageUrl ?? displayScan.thumbnailUrl
+        guard let fallbackUrlString, let url = URL(string: fallbackUrlString) else { return [] }
+        let thumbnailUrl = displayScan.thumbnailUrl.flatMap(URL.init(string:))
+        return [ScanImageDisplay(id: displayScan.id, url: url, thumbnailUrl: thumbnailUrl)]
+    }
+
+    private func loadScanImages() async {
+        guard !convexService.isOffline else { return }
+        await MainActor.run {
+            isLoadingImages = true
+        }
+
+        do {
+            let images = try await convexService.fetchScanImages(scanId: displayScan.id)
+            await MainActor.run {
+                scanImages = images
+                isLoadingImages = false
+            }
+        } catch {
+            await MainActor.run {
+                isLoadingImages = false
+            }
+            print("[ScanDetail] Failed to load scan images: \(error)")
+        }
     }
     
     private var scanSummaryCard: some View {
@@ -1037,6 +1122,75 @@ struct ScanDetailView: View {
         formatter.numberStyle = .currency
         formatter.currencyCode = currency ?? "USD"
         return formatter.string(from: NSNumber(value: amount)) ?? "$\(amount)"
+    }
+}
+
+private struct ScanImageDisplay: Identifiable, Equatable {
+    let id: String
+    let url: URL
+    let thumbnailUrl: URL?
+}
+
+private struct ScanImageZoomView: View {
+    let image: ScanImageDisplay
+    @Environment(\.dismiss) private var dismiss
+    @State private var zoomScale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+    private let minScale: CGFloat = 1
+    private let maxScale: CGFloat = 4
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                ScrollView([.horizontal, .vertical], showsIndicators: false) {
+                    CachedAsyncImage(url: image.url) { loaded in
+                        loaded
+                            .resizable()
+                            .scaledToFit()
+                            .scaleEffect(zoomScale)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .padding(24)
+                    } placeholder: {
+                        Rectangle()
+                            .fill(Color(hex: "0a0a0f"))
+                            .overlay {
+                                ProgressView()
+                            }
+                    }
+                }
+                .gesture(magnificationGesture)
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(Color(hex: "d1d5db"))
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ShareLink(item: image.url) {
+                        Label("Download", systemImage: "arrow.down.circle")
+                    }
+                    .foregroundColor(Color(hex: "6366f1"))
+                }
+            }
+            .toolbarBackground(Color.black, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+        }
+    }
+
+    private var magnificationGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                let delta = value / lastScale
+                let newScale = min(max(zoomScale * delta, minScale), maxScale)
+                zoomScale = newScale
+                lastScale = value
+            }
+            .onEnded { _ in
+                lastScale = 1
+            }
     }
 }
 
