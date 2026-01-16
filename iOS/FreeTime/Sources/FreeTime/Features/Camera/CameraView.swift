@@ -264,7 +264,7 @@ struct CameraView: View {
     }
 
     private var hintText: String {
-        let queuedCount = viewModel.queuedItemCount
+        let queuedCount = pendingLocalQueueCount(using: convexService.scans)
         let offlineQueued = offlineQueueManager.pendingCount
         if viewModel.capturedImages.isEmpty {
             if convexService.isOffline {
@@ -287,7 +287,8 @@ struct CameraView: View {
     private var queueChipOverlay: some View {
         let buckets = queueBuckets
         let offlineQueued = offlineQueueManager.pendingCount
-        let queueCount = viewModel.queuedItemCount + offlineQueued + buckets.active.count
+        let queuedLocal = pendingLocalQueueCount(using: convexService.scans)
+        let queueCount = queuedLocal + offlineQueued + buckets.active.count
         let hasQueueItems = queueCount > 0 || !buckets.completed.isEmpty
         let queueLabel = queueCount > 0 ? "Queue \(queueCount)" : "Queue"
         return VStack {
@@ -379,7 +380,7 @@ struct CameraView: View {
     }
 
     private var queueTrayView: some View {
-        let queuedLocal = viewModel.queuedItemCount
+        let queuedLocal = pendingLocalQueueCount(using: convexService.scans)
         let offlineQueued = offlineQueueManager.pendingCount
         let buckets = queueBuckets
         let activeRecentScans = buckets.active
@@ -590,6 +591,15 @@ struct CameraView: View {
             .filter { $0.createdAt >= completedCutoff && isCompletedStatus($0.status) }
             .sorted { $0.createdAt > $1.createdAt }
         return (active, completed)
+    }
+
+    private func pendingLocalQueueCount(using scans: [Scan]) -> Int {
+        let totalQueued = viewModel.queuedItemCount
+        guard totalQueued > 0, let currentScanId = viewModel.currentSubmissionScanId else {
+            return totalQueued
+        }
+        let hasCurrentScan = scans.contains { $0.id == currentScanId }
+        return max(totalQueued - (hasCurrentScan ? 1 : 0), 0)
     }
     
     private func isCompletedStatus(_ status: ScanStatus) -> Bool {
@@ -821,6 +831,7 @@ class CameraViewModel: NSObject, ObservableObject {
     @Published var errorMessage: String?
     @Published var capturedImages: [CapturedImage] = []
     @Published var queuedItemCount = 0
+    @Published var currentSubmissionScanId: String?
     
     // MARK: - Services
     
@@ -1034,6 +1045,7 @@ class CameraViewModel: NSObject, ObservableObject {
             processingStage = .extracting
             processingStatus = "AI reading tags..."
             let scanId = try await convexService.createScan(imageStorageId: storageIds[0])
+            currentSubmissionScanId = scanId
             print("[Camera] Created scan: \(scanId)")
             
             let processingTask = Task {
@@ -1082,6 +1094,7 @@ class CameraViewModel: NSObject, ObservableObject {
             submissionQueue.removeFirst()
         }
         isQueueProcessing = false
+        currentSubmissionScanId = nil
         updateQueuedItemCount()
         processQueueIfNeeded()
     }
